@@ -143,7 +143,7 @@ show up in ``DESCRIBE <table-name>`` or ``SELECT *``.
 
 This property is optional; the default is ``true``.
 
-# Internal Columns
+### Internal Columns
 
 For each defined table, the connector maintains the following columns:
 
@@ -163,7 +163,7 @@ rom the message should be treated as invalid|
 For tables without a table definition file, the ``_message_valid`` column will
 always be ``true``.
 
-# Table Definition Files
+## Table Definition Files
 
 Kinesis streams stores data as stream of bytes and leaves it to produceres and
 consumers to define how a message should be interpreted. For Presto, this data
