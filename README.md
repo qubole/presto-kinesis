@@ -148,6 +148,7 @@ This property is optional; the default is ``true``.
 For each defined table, the connector maintains the following columns:
 
 |Column name|             Type|      Description|
+|-----------|-----------------|-----------------|
 |``_shard_id``|           VARCHAR|   ID of the Kinesis stream shard which contains this row|
 |``_shard_sequence_id``|  VARCHAR|   Sequence id within the Kinesis shard for this row|
 |``_segment_start``|      VARCHAR|   Lowest sequence id in the segment (inclusive) which contains this row. This sequence id is shrard specific|
