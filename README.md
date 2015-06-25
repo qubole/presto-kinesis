@@ -10,5 +10,5 @@ Streams can be live: rows will appear as data is pushed into the stream, and dis
 > This connector is Read-Only connector. It can only fetch data from kinesis streams, but can not create streams or push data into the al
 ready existing streams.
 
-Please refer to the wiki pages for how to install and configure the connector. This README will show how to build the connector jar file.
+Please refer to the [wiki] (https://github.com/snarayananqubole/presto-kinesis/wiki/Overview) for how to install and configure the connector. This README will show how to build the connector jar file.
 
