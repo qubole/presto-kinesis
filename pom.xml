@@ -6,7 +6,7 @@
         <groupId>com.facebook.presto</groupId>
         <artifactId>presto-root</artifactId>
 	<!-- replace with the right version of presto -->
-        <version>0.107</version>
+        <version>0.105</version>
     </parent>
 
     <artifactId>presto-kinesis</artifactId>
@@ -322,6 +322,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- integration tests take a very long time so only run them in the CI server -->
+          <excludes>
+            <exclude>**/TestMinimalFunctionality.java</exclude>
+          </excludes>
+        </configuration> 
       </plugin>
     </plugins>
   </build>
