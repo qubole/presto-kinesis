@@ -14,11 +14,21 @@ hours by kinesis streams).
 kinesis streams, but can not create streams or push data into the al
 ready existing streams.
 
-Please refer to the [wiki]
-(https://github.com/snarayananqubole/presto-kinesis/wiki/Overview) for
-how to install and configure the connector. This README will show how
-to build the connector jar file.
 
 # Building
 
     mvn clean package
+
+This will create ``target/presto-kinesis-<version>-bundle.tar.gz``
+file which contains the connector code and its dependency jars.
+
+# Installation
+
+You will need to augment your presto installation on coordinator and worker nodes to make sure the connector is loaded and configured properly. We will use $PRESTO_HOME to refer to the presto installation directory.
+
+* Edit file $PRESTO_HOME/etc/config.properties and add ``kinesis`` to the datasources property (e.g. ``datasources=hive,kinesis``)
+* Create a kinesis.properties file in $PRESTO_HOME/etc/catalog directory. See [Connector Configuration] (https://github.com/snarayananqubole/presto-kinesis/wiki/Connector-Configuration)
+* Create directory $PRESTO_HOME/etc/kinesis and create <table>.json files. There should be one file for every presto-kinesis table. See [Table Definition] (https://github.com/snarayananqubole/presto-kinesis/wiki/Table-Definitions)
+* Copy contents of the tarred file to $PRESTO_HOME/plugin/presto-kinesis (create it if necessary)
+
+
