@@ -14,17 +14,19 @@
 package com.facebook.presto.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.facebook.presto.spi.ConnectorHandleResolver;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 
 import java.util.Map;
 import java.util.Optional;
 
-import com.facebook.presto.spi.Connector;
-import com.facebook.presto.spi.ConnectorFactory;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.TypeManager;
-import com.google.common.base.Supplier;
+import java.util.function.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -59,6 +61,13 @@ public class KinesisConnectorFactory
     public String getName()
     {
         return "kinesis";
+    }
+
+    @Override
+    public ConnectorHandleResolver getHandleResolver()
+    {
+        // TODO: new method that needs implementing
+        return null;
     }
 
     @Override

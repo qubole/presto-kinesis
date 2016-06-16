@@ -21,9 +21,11 @@ import com.facebook.presto.kinesis.decoder.KinesisDecoderRegistry;
 import com.facebook.presto.kinesis.decoder.KinesisFieldDecoder;
 import com.facebook.presto.kinesis.decoder.KinesisRowDecoder;
 import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorRecordSetProvider;
+import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.RecordSet;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -49,8 +51,10 @@ public class KinesisRecordSetProvider
     }
 
     @Override
-    public RecordSet getRecordSet(ConnectorSplit split, List<? extends ColumnHandle> columns)
+    public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
+                                  ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
+        // TODO: method signature has changed, verify
         KinesisSplit kinesisSplit = handleResolver.convertSplit(split);
 
         ImmutableList.Builder<KinesisColumnHandle> handleBuilder = ImmutableList.builder();

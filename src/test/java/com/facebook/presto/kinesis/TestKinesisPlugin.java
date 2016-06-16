@@ -14,12 +14,14 @@
 package com.facebook.presto.kinesis;
 
 import java.util.List;
+import java.util.Optional;
 
+import com.facebook.presto.spi.type.TypeSignatureParameter;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
-import com.facebook.presto.spi.Connector;
-import com.facebook.presto.spi.ConnectorFactory;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignature;
@@ -72,9 +74,27 @@ public class TestKinesisPlugin
         }
 
         @Override
-        public Type getParameterizedType(String baseTypeName, List<TypeSignature> typeParameters, List<Object> literalParameters)
+        public Type getParameterizedType(String baseTypeName, List<TypeSignatureParameter> typeParameters)
         {
             return null;
+        }
+
+        @Override
+        public Optional<Type> getCommonSuperType(Type firstType, Type secondType)
+        {
+            return Optional.empty(); // TODO: new method and not sure what this is for
+        }
+
+        @Override
+        public boolean isTypeOnlyCoercion(Type type, Type type1)
+        {
+            return false; // TODO: new method and not sure what this is for
+        }
+
+        @Override
+        public Optional<Type> coerceTypeBase(Type type, String s)
+        {
+            return null; // TODO: new method and not sure what this is for
         }
 
         @Override

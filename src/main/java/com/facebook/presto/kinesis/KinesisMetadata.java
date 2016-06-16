@@ -14,22 +14,30 @@
 package com.facebook.presto.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.ColumnMetadata;
+import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.ConnectorTableMetadata;
+import com.facebook.presto.spi.Constraint;
+import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.SchemaTablePrefix;
+import com.facebook.presto.spi.TableNotFoundException;
+import com.facebook.presto.spi.ConnectorTableLayoutResult;
+import com.facebook.presto.spi.ConnectorTableHandle;
+import com.facebook.presto.spi.ConnectorTableLayout;
+import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+
 import io.airlift.log.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import com.facebook.presto.kinesis.decoder.dummy.DummyKinesisRowDecoder;
-import com.facebook.presto.spi.ColumnMetadata;
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorSession;
-import com.facebook.presto.spi.ConnectorTableHandle;
-import com.facebook.presto.spi.ConnectorTableMetadata;
-import com.facebook.presto.spi.ReadOnlyConnectorMetadata;
-import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
-import com.facebook.presto.spi.TableNotFoundException;
+//import com.facebook.presto.spi.ReadOnlyConnectorMetadata;
+import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -40,7 +48,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 public class KinesisMetadata
-        extends ReadOnlyConnectorMetadata
+        implements ConnectorMetadata
 {
     private static final Logger log = Logger.get(KinesisMetadata.class);
 
@@ -62,7 +70,7 @@ public class KinesisMetadata
         this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "kinesisConfig is null");
         this.handleResolver = checkNotNull(handleResolver, "handleResolver is null");
 
-        log.debug("Loading kinesis table definitions from %s", kinesisConnectorConfig.getTableDescriptionDir().getAbsolutePath());
+        log.debug("Loading kinesis table definitions from %s", kinesisConnectorConfig.getTableDescriptionDir().toAbsolutePath().toString());
 
         this.kinesisTableDescriptionSupplier = Suppliers.memoize(kinesisTableDescriptionSupplier);
         this.internalFieldDescriptions = checkNotNull(internalFieldDescriptions, "internalFieldDescriptions is null");
@@ -95,8 +103,21 @@ public class KinesisMetadata
     }
 
     @Override
-    public ConnectorTableMetadata getTableMetadata(ConnectorTableHandle tableHandle)
+    public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession connectorSession, ConnectorTableHandle connectorTableHandle, Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> optional)
     {
+        return null; // TODO: implement
+    }
+
+    @Override
+    public ConnectorTableLayout getTableLayout(ConnectorSession connectorSession, ConnectorTableLayoutHandle connectorTableLayoutHandle)
+    {
+        return null; // TODO: implement
+    }
+
+    @Override
+    public ConnectorTableMetadata getTableMetadata(ConnectorSession connectorSession, ConnectorTableHandle tableHandle)
+    {
+        // TODO: method signature changed, verify
         KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
         return getTableMetadata(kinesisTableHandle.toSchemaTableName());
     }
@@ -114,15 +135,14 @@ public class KinesisMetadata
         return builder.build();
     }
 
-    @Override
-    public ColumnHandle getSampleWeightColumnHandle(ConnectorTableHandle tableHandle)
-    {
-        return null;
-    }
+    // TODO: old method no longer needed:
+    //@Override
+    //public ColumnHandle getSampleWeightColumnHandle(ConnectorTableHandle tableHandle){return null;}
 
     @Override
-    public Map<String, ColumnHandle> getColumnHandles(ConnectorTableHandle tableHandle)
+    public Map<String, ColumnHandle> getColumnHandles(ConnectorSession connectorSession, ConnectorTableHandle tableHandle)
     {
+        // TODO: method signature changed, verify
         KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
 
         KinesisStreamDescription kinesisStreamDescription = getDefinedTables().get(kinesisTableHandle.toSchemaTableName());
@@ -161,8 +181,9 @@ public class KinesisMetadata
     }
 
     @Override
-    public ColumnMetadata getColumnMetadata(ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
+    public ColumnMetadata getColumnMetadata(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
     {
+        // TODO: method signature changed, verify
         handleResolver.convertTableHandle(tableHandle);
         KinesisColumnHandle kinesisColumnHandle = handleResolver.convertColumnHandle(columnHandle);
 

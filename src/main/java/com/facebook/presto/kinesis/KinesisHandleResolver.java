@@ -25,8 +25,10 @@ import com.facebook.presto.spi.ConnectorInsertTableHandle;
 import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorTableHandle;
+import com.facebook.presto.spi.ConnectorTableLayoutHandle;
 import com.google.inject.name.Named;
 
+// TODO: removed old canHandle methods, no longer needed
 public class KinesisHandleResolver
         implements ConnectorHandleResolver
 {
@@ -41,45 +43,15 @@ public class KinesisHandleResolver
     }
 
     @Override
-    public boolean canHandle(ConnectorTableHandle tableHandle)
-    {
-        return tableHandle != null && tableHandle instanceof KinesisTableHandle && connectorId.equals(((KinesisTableHandle) tableHandle).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ColumnHandle columnHandle)
-    {
-        return columnHandle != null && columnHandle instanceof KinesisColumnHandle && connectorId.equals(((KinesisColumnHandle) columnHandle).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ConnectorSplit split)
-    {
-        return split != null && split instanceof KinesisSplit && connectorId.equals(((KinesisSplit) split).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ConnectorIndexHandle indexHandle)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean canHandle(ConnectorOutputTableHandle tableHandle)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean canHandle(ConnectorInsertTableHandle tableHandle)
-    {
-        return false;
-    }
-
-    @Override
     public Class<? extends ConnectorTableHandle> getTableHandleClass()
     {
         return KinesisTableHandle.class;
+    }
+
+    @Override
+    public Class<? extends ConnectorTableLayoutHandle> getTableLayoutHandleClass()
+    {
+        throw new UnsupportedOperationException(); // TODO: new method needs implementing
     }
 
     @Override

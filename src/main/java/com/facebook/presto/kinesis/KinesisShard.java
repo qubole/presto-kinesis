@@ -16,13 +16,16 @@ package com.facebook.presto.kinesis;
 import static com.google.common.base.MoreObjects.toStringHelper;
 
 import com.amazonaws.services.kinesis.model.Shard;
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorPartition;
-import com.facebook.presto.spi.TupleDomain;
+//import com.facebook.presto.spi.ColumnHandle;
+
+// These no longer exist:
+//import com.facebook.presto.spi.ConnectorPartition;
+//import com.facebook.presto.spi.TupleDomain;
+////implements ConnectorPartition
 
 public class KinesisShard
-        implements ConnectorPartition
 {
+    // TODO: revisit this.  ConnectorPartition no longer exists so need to find out what the replacement is.
     private final String streamName;
     private final Shard shard;
 
@@ -32,17 +35,17 @@ public class KinesisShard
         this.shard = shard;
     }
 
-    @Override
+    //@Override
     public String getPartitionId()
     {
         return shard.getShardId();
     }
 
-    @Override
-    public TupleDomain<ColumnHandle> getTupleDomain()
-    {
-        return TupleDomain.all();
-    }
+    //@Override
+    //public TupleDomain<ColumnHandle> getTupleDomain()
+    //{
+    //    return TupleDomain.all();
+    //}
 
     public String getStreamName()
     {

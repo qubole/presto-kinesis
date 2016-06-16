@@ -16,7 +16,11 @@ package com.facebook.presto.kinesis;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 
-import java.io.File;
+import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -25,15 +29,13 @@ import org.weakref.jmx.internal.guava.base.Objects;
 
 import com.facebook.presto.kinesis.decoder.dummy.DummyKinesisRowDecoder;
 import com.facebook.presto.spi.SchemaTableName;
-import com.google.common.base.Supplier;
+import java.util.function.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import com.google.inject.Inject;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Arrays.asList;
 
 /**
  *
@@ -62,9 +64,10 @@ public class KinesisTableDescriptionSupplier
     {
         ImmutableMap.Builder<SchemaTableName, KinesisStreamDescription> builder = ImmutableMap.builder();
         try {
-            for (File file : listFiles(kinesisConnectorConfig.getTableDescriptionDir())) {
-                if (file.isFile() && file.getName().endsWith(".json")) {
-                    KinesisStreamDescription table = streamDescriptionCodec.fromJson(Files.toByteArray(file));
+            for (Path file : listFiles(kinesisConnectorConfig.getTableDescriptionDir())) {
+                if (Files.isRegularFile(file) && file.getFileName().endsWith(".json")) {
+                    //Prefer java.nio.file.Files.readAllBytes(java.nio.file.Path)
+                    KinesisStreamDescription table = streamDescriptionCodec.fromJson(Files.readAllBytes(file));
                     String schemaName = Objects.firstNonNull(table.getSchemaName(), kinesisConnectorConfig.getDefaultSchema());
                     log.debug("Kinesis table %s %s %s", schemaName, table.getTableName(), table);
                     builder.put(new SchemaTableName(schemaName, table.getTableName()), table);
@@ -108,13 +111,20 @@ public class KinesisTableDescriptionSupplier
         }
     }
 
-    private static List<File> listFiles(File dir)
+    private static List<Path> listFiles(Path dir)
     {
-        if ((dir != null) && dir.isDirectory()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                log.debug("Considering files: %s", asList(files));
-                return ImmutableList.copyOf(files);
+        if ((dir != null) && Files.isDirectory(dir)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                ImmutableList.Builder<Path> builder = ImmutableList.builder();
+                for (Path file : stream) {
+                    builder.add(file);
+                }
+
+                return builder.build();
+            }
+            catch (IOException | DirectoryIteratorException x) {
+                log.warn(x, "Warning.");
+                throw Throwables.propagate(x);
             }
         }
         return ImmutableList.of();

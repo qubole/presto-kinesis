@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.testing.ConfigAssertions;
 import io.airlift.units.Duration;
 
-import java.io.File;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +38,7 @@ public class TestKinesisConnectorConfig
                 .setDefaultSchema("default")
                 .setHideInternalColumns(true)
                 .setTableNames("")
-                .setTableDescriptionDir(new File("etc/kinesis/"))
+                .setTableDescriptionDir(Paths.get("etc/kinesis/"))
                 .setAccessKey(null)
                 .setSecretKey(null)
                 .setAwsRegion("us-east-1")
@@ -80,7 +80,7 @@ public class TestKinesisConnectorConfig
                 .build();
 
         KinesisConnectorConfig expected = new KinesisConnectorConfig()
-                .setTableDescriptionDir(new File("/var/lib/kinesis"))
+                .setTableDescriptionDir(Paths.get("/var/lib/kinesis"))
                 .setTableNames("table1, table2, table3")
                 .setDefaultSchema("kinesis")
                 .setHideInternalColumns(false)

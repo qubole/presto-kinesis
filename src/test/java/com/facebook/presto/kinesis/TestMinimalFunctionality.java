@@ -33,7 +33,8 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.facebook.presto.Session;
 import com.facebook.presto.kinesis.util.EmbeddedKinesisStream;
 import com.facebook.presto.kinesis.util.TestUtils;
-import com.facebook.presto.metadata.QualifiedTableName;
+import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.BigintType;
@@ -52,8 +53,10 @@ public class TestMinimalFunctionality
 {
     private static final Logger log = Logger.get(TestMinimalFunctionality.class);
 
-        private static final Session SESSION = Session.builder()
-            .setUser("user")
+    // TODO: new API with SessionPropertyManager, not sure this is right here
+    // TODO: no more setUser, should it be setIdentity ??
+        private static final Session SESSION = Session.builder(new SessionPropertyManager())
+            //.setUser("user")
             .setSource("source")
             .setCatalog("kinesis")
             .setSchema("default")
@@ -121,7 +124,8 @@ public class TestMinimalFunctionality
     public void testStreamExists()
             throws Exception
     {
-        QualifiedTableName name = new QualifiedTableName("kinesis", "default", streamName);
+        // TODO: Was QualifiedTableName, is this OK:
+        QualifiedObjectName name = new QualifiedObjectName("kinesis", "default", streamName);
         Optional<TableHandle> handle = queryRunner.getServer().getMetadata().getTableHandle(SESSION, name);
         assertTrue(handle.isPresent());
     }

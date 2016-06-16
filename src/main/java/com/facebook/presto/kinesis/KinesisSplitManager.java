@@ -13,28 +13,32 @@
  */
 package com.facebook.presto.kinesis;
 
-import java.util.ArrayList;
-import java.util.List;
+// Temp commented out until impl finished
+//import java.util.ArrayList;
+//import java.util.List;
 
 import javax.inject.Named;
 
-import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
-import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-import com.amazonaws.services.kinesis.model.Shard;
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorPartition;
-import com.facebook.presto.spi.ConnectorPartitionResult;
-import com.facebook.presto.spi.ConnectorSplit;
-import com.facebook.presto.spi.ConnectorSplitManager;
+//import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+//import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+//import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+//import com.amazonaws.services.kinesis.model.Shard;
+
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplitSource;
-import com.facebook.presto.spi.ConnectorTableHandle;
-import com.facebook.presto.spi.FixedSplitSource;
-import com.facebook.presto.spi.TupleDomain;
-import com.google.common.collect.ImmutableList;
+import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.connector.ConnectorSplitManager;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+
+//import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkState;
+//import static com.google.common.base.Preconditions.checkState;
+
+// These no longer exist:
+//import com.facebook.presto.spi.ConnectorPartition;
+//import com.facebook.presto.spi.ConnectorPartitionResult;
+//import com.facebook.presto.spi.TupleDomain;
 
 /**
  *
@@ -59,6 +63,15 @@ public class KinesisSplitManager
         this.clientManager = clientManager;
     }
 
+    // TODO: the interface here has totally changed.  This needs to be redone if important:
+    @Override
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout)
+    {
+        throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    // Leaving old code in case we need to do this
+    /*
     @Override
     public ConnectorPartitionResult getPartitions(ConnectorTableHandle tableHandle, TupleDomain<ColumnHandle> tupleDomain)
     {
@@ -120,4 +133,5 @@ public class KinesisSplitManager
 
         return new FixedSplitSource(connectorId, builder.build());
     }
+    */
 }

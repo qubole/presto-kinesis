@@ -5,9 +5,14 @@
     <parent>
         <groupId>com.facebook.presto</groupId>
         <artifactId>presto-root</artifactId>
-	<!-- replace with the right version of presto -->
-        <version>0.105</version>
+	    <!-- Current working version of presto.  Original: 0.105  SF: 0.130  Latest: 0.147 -->
+        <version>0.148-SNAPSHOT</version>
     </parent>
+
+    <properties>
+        <dep.aws-sdk.version>1.9.37</dep.aws-sdk.version>
+        <dep.kinesis-client.version>1.2.0</dep.kinesis-client.version>
+    </properties>
 
     <artifactId>presto-kinesis</artifactId>
     <description>Presto - Kinesis Connector</description>
@@ -164,7 +169,7 @@
       <dependency>
 	<groupId>com.amazonaws</groupId>
 	<artifactId>aws-java-sdk-kinesis</artifactId>
-	<version>1.9.37</version>
+	<version>${dep.aws-sdk.version}</version>
 	<exclusions>
           <exclusion>
             <groupId>joda-time</groupId>
@@ -179,7 +184,7 @@
       <dependency>
 	<groupId>com.amazonaws</groupId>
 	<artifactId>amazon-kinesis-client</artifactId>
-	<version>1.2.0</version> 
+	<version>${dep.kinesis-client.version}</version>
 	<exclusions>
           <exclusion>
             <groupId>commons-logging</groupId>
@@ -214,7 +219,7 @@
       <dependency>
 	<groupId>com.amazonaws</groupId>
 	<artifactId>aws-java-sdk-dynamodb</artifactId>
-	<version>1.9.37</version>
+	<version>${dep.aws-sdk.version}</version>
 	<exclusions>
           <exclusion>
             <groupId>joda-time</groupId>
@@ -238,7 +243,7 @@
       <dependency>
 	<groupId>com.amazonaws</groupId>
 	<artifactId>aws-java-sdk-core</artifactId>
-	<version>1.9.37</version>
+	<version>${dep.aws-sdk.version}</version>
 	<exclusions>
           <exclusion>
             <groupId>joda-time</groupId>
@@ -330,6 +335,8 @@
         </configuration> 
       </plugin>
 
+        <!-- TODO: not clear this is needed -->
+        <!--
       <plugin>
 	<artifactId>maven-assembly-plugin</artifactId>
 	<version>2.5.3</version>
@@ -346,6 +353,7 @@
 	  </execution>
 	</executions>
       </plugin>
+      -->
     </plugins>
   </build>
 

@@ -33,6 +33,7 @@ import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+
 import com.facebook.presto.kinesis.decoder.KinesisFieldDecoder;
 import com.facebook.presto.kinesis.decoder.KinesisRowDecoder;
 import com.facebook.presto.spi.RecordCursor;
@@ -336,6 +337,13 @@ public class KinesisRecordSet
 
             checkFieldType(field, Slice.class);
             return isNull(field) ? Slices.EMPTY_SLICE : fieldValueProviders[field].getSlice();
+        }
+
+        @Override
+        public Object getObject(int i)
+        {
+            // TODO: new method that we need to implement
+            return null;
         }
 
         @Override

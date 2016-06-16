@@ -21,7 +21,7 @@ import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 /**
  *
@@ -117,7 +117,7 @@ public class KinesisTableHandle
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(connectorId, schemaName, tableName, streamName, messageDataFormat);
+        return Objects.hash(connectorId, schemaName, tableName, streamName, messageDataFormat);
     }
 
     @Override
@@ -131,11 +131,11 @@ public class KinesisTableHandle
         }
 
         KinesisTableHandle other = (KinesisTableHandle) obj;
-        return Objects.equal(this.connectorId, other.connectorId)
-                && Objects.equal(this.schemaName, other.schemaName)
-                && Objects.equal(this.tableName, other.tableName)
-                && Objects.equal(this.streamName, other.streamName)
-                && Objects.equal(this.messageDataFormat, other.messageDataFormat);
+        return Objects.equals(this.connectorId, other.connectorId)
+                && Objects.equals(this.schemaName, other.schemaName)
+                && Objects.equals(this.tableName, other.tableName)
+                && Objects.equals(this.streamName, other.streamName)
+                && Objects.equals(this.messageDataFormat, other.messageDataFormat);
     }
 
     @Override
@@ -152,7 +152,8 @@ public class KinesisTableHandle
 
     public static String getSessionProperty(ConnectorSession session, String key)
     {
-        String value = session.getProperties().get(key);
+        //String value = session.getProperties().get(key);
+        String value = session.getProperty(key, String.class);
         if (value == null) {
             return "0";
         }
