@@ -54,7 +54,6 @@ public class KinesisRecordSetProvider
     public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
                                   ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
-        // TODO: method signature has changed, verify
         KinesisSplit kinesisSplit = handleResolver.convertSplit(split);
 
         ImmutableList.Builder<KinesisColumnHandle> handleBuilder = ImmutableList.builder();

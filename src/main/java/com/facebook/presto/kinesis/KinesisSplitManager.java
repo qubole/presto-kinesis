@@ -13,32 +13,26 @@
  */
 package com.facebook.presto.kinesis;
 
-// Temp commented out until impl finished
-//import java.util.ArrayList;
-//import java.util.List;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.inject.Named;
 
-//import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
-//import com.amazonaws.services.kinesis.model.DescribeStreamResult;
-//import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
-//import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+import com.amazonaws.services.kinesis.model.Shard;
 
 import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitSource;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.FixedSplitSource;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
-//import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
-
-//import static com.google.common.base.Preconditions.checkState;
-
-// These no longer exist:
-//import com.facebook.presto.spi.ConnectorPartition;
-//import com.facebook.presto.spi.ConnectorPartitionResult;
-//import com.facebook.presto.spi.TupleDomain;
 
 /**
  *
@@ -63,19 +57,11 @@ public class KinesisSplitManager
         this.clientManager = clientManager;
     }
 
-    // TODO: the interface here has totally changed.  This needs to be redone if important:
     @Override
     public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout)
     {
-        throw new UnsupportedOperationException("not yet implemented");
-    }
-
-    // Leaving old code in case we need to do this
-    /*
-    @Override
-    public ConnectorPartitionResult getPartitions(ConnectorTableHandle tableHandle, TupleDomain<ColumnHandle> tupleDomain)
-    {
-        KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
+        KinesisTableLayoutHandle kinesislayout = handleResolver.convertLayout(layout);
+        KinesisTableHandle kinesisTableHandle = kinesislayout.getTable();
 
         DescribeStreamRequest describeStreamRequest = clientManager.getDescribeStreamRequest();
         describeStreamRequest.setStreamName(kinesisTableHandle.getStreamName());
@@ -85,18 +71,14 @@ public class KinesisSplitManager
         DescribeStreamResult describeStreamResult = clientManager.getClient().describeStream(describeStreamRequest);
 
         String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
-        while ((streamStatus.equals("ACTIVE") == false) && (streamStatus.equals("UPDATING") == false)) {
+        if (!streamStatus.equals("ACTIVE") && !streamStatus.equals("UPDATING")) {
             throw new ResourceNotFoundException("Stream not Active");
         }
 
+        // Collect shards from Kinesis
         List<Shard> shards = new ArrayList<>();
-        ImmutableList.Builder<ConnectorPartition> builder = ImmutableList.builder();
         do {
             shards.addAll(describeStreamResult.getStreamDescription().getShards());
-
-            for (Shard shard : shards) {
-                builder.add(new KinesisShard(kinesisTableHandle.getStreamName(), shard));
-            }
 
             if (describeStreamResult.getStreamDescription().getHasMoreShards() && (shards.size() > 0)) {
                 exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
@@ -107,31 +89,19 @@ public class KinesisSplitManager
 
         } while (exclusiveStartShardId != null);
 
-        return new ConnectorPartitionResult(builder.build(), tupleDomain);
-    }
-
-    @Override
-    public ConnectorSplitSource getPartitionSplits(ConnectorTableHandle tableHandle, List<ConnectorPartition> partitions)
-    {
-        KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
-
+        // TODO: verify shard structure and use of connector session
         ImmutableList.Builder<ConnectorSplit> builder = ImmutableList.builder();
-
-        for (ConnectorPartition cp : partitions) {
-            checkState(cp instanceof KinesisShard, "Found an unkown partition type: %s", cp.getClass().getSimpleName());
-            KinesisShard kinesisShard = (KinesisShard) cp;
-
+        for (Shard shard : shards) {
             KinesisSplit split = new KinesisSplit(connectorId,
-                        ((KinesisTableHandle) tableHandle).getSession(),
-                        kinesisShard.getStreamName(),
-                        kinesisTableHandle.getMessageDataFormat(),
-                        kinesisShard.getPartitionId(),
-                        kinesisShard.getShard().getSequenceNumberRange().getStartingSequenceNumber(),
-                        kinesisShard.getShard().getSequenceNumberRange().getEndingSequenceNumber());
+                    session,
+                    kinesisTableHandle.getStreamName(),
+                    kinesisTableHandle.getMessageDataFormat(),
+                    shard.getShardId(),
+                    shard.getSequenceNumberRange().getStartingSequenceNumber(),
+                    shard.getSequenceNumberRange().getEndingSequenceNumber());
             builder.add(split);
         }
 
         return new FixedSplitSource(connectorId, builder.build());
     }
-    */
 }

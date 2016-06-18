@@ -21,6 +21,8 @@ import java.util.Optional;
 
 import javax.inject.Inject;
 
+import io.airlift.log.Logger;
+
 import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.Plugin;
 import com.facebook.presto.spi.SchemaTableName;
@@ -38,6 +40,8 @@ import com.google.common.collect.ImmutableMap;
 public class KinesisPlugin
         implements Plugin
 {
+    private static final Logger log = Logger.get(KinesisPlugin.class);
+
     private TypeManager typeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
@@ -51,6 +55,8 @@ public class KinesisPlugin
     @Inject
     public synchronized void setTypeManager(TypeManager typeManager)
     {
+        // Note: this is done by the PluginManager when loading (not the injector of this plug in!)
+        log.info("Injecting type manager into KinesisPlugin");
         this.typeManager = checkNotNull(typeManager, "typeManager is null");
     }
 
@@ -64,6 +70,7 @@ public class KinesisPlugin
     public synchronized <T> List<T> getServices(Class<T> type)
     {
         if (type == ConnectorFactory.class) {
+            log.info("Creating connector factory.");
             return ImmutableList.of(type.cast(new KinesisConnectorFactory(typeManager, tableDescriptionSupplier, optionalConfig)));
         }
         return ImmutableList.of();

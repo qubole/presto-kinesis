@@ -16,8 +16,6 @@ package com.facebook.presto.kinesis;
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
-import java.nio.file.Paths;
-import java.nio.file.Path;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -45,7 +43,7 @@ public class KinesisConnectorConfig
     /**
      * Folder holding the JSON description files for Kafka topics.
      */
-    private Path tableDescriptionDir = Paths.get("etc/kinesis/");
+    private String tableDescriptionDir = "etc/kinesis/";
 
     /**
      * Whether internal columns are shown in table metadata or not. Default is no.
@@ -89,13 +87,13 @@ public class KinesisConnectorConfig
     private int iterationNumber = 0;
 
     @NotNull
-    public Path getTableDescriptionDir()
+    public String getTableDescriptionDir()
     {
         return tableDescriptionDir;
     }
 
     @Config("kinesis.table-description-dir")
-    public KinesisConnectorConfig setTableDescriptionDir(Path tableDescriptionDir)
+    public KinesisConnectorConfig setTableDescriptionDir(String tableDescriptionDir)
     {
         this.tableDescriptionDir = tableDescriptionDir;
         return this;

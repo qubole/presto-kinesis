@@ -36,11 +36,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.facebook.presto.kinesis.decoder.dummy.DummyKinesisRowDecoder;
-//import com.facebook.presto.spi.ReadOnlyConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import java.util.function.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -70,9 +68,9 @@ public class KinesisMetadata
         this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "kinesisConfig is null");
         this.handleResolver = checkNotNull(handleResolver, "handleResolver is null");
 
-        log.debug("Loading kinesis table definitions from %s", kinesisConnectorConfig.getTableDescriptionDir().toAbsolutePath().toString());
+        log.debug("Loading kinesis table definitions from %s", kinesisConnectorConfig.getTableDescriptionDir());
 
-        this.kinesisTableDescriptionSupplier = Suppliers.memoize(kinesisTableDescriptionSupplier);
+        this.kinesisTableDescriptionSupplier = kinesisTableDescriptionSupplier;
         this.internalFieldDescriptions = checkNotNull(internalFieldDescriptions, "internalFieldDescriptions is null");
     }
 
@@ -98,26 +96,28 @@ public class KinesisMetadata
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 table.getStreamName(),
-                getDataFormat(table.getMessage()),
-                session);
+                getDataFormat(table.getMessage()));
     }
 
     @Override
-    public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession connectorSession, ConnectorTableHandle connectorTableHandle, Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> optional)
+    public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession connectorSession, ConnectorTableHandle table,
+                                                            Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> optional)
     {
-        return null; // TODO: implement
-    }
+        // TODO note: this was taken pretty much straight from Kafta, may need review
+        KinesisTableHandle tblHandle = handleResolver.convertTableHandle(table);
+        ConnectorTableLayout layout = new ConnectorTableLayout(new KinesisTableLayoutHandle(connectorId, tblHandle));
+        return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));
+     }
 
     @Override
     public ConnectorTableLayout getTableLayout(ConnectorSession connectorSession, ConnectorTableLayoutHandle connectorTableLayoutHandle)
     {
-        return null; // TODO: implement
+        return new ConnectorTableLayout(connectorTableLayoutHandle);
     }
 
     @Override
     public ConnectorTableMetadata getTableMetadata(ConnectorSession connectorSession, ConnectorTableHandle tableHandle)
     {
-        // TODO: method signature changed, verify
         KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
         return getTableMetadata(kinesisTableHandle.toSchemaTableName());
     }
@@ -135,14 +135,9 @@ public class KinesisMetadata
         return builder.build();
     }
 
-    // TODO: old method no longer needed:
-    //@Override
-    //public ColumnHandle getSampleWeightColumnHandle(ConnectorTableHandle tableHandle){return null;}
-
     @Override
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession connectorSession, ConnectorTableHandle tableHandle)
     {
-        // TODO: method signature changed, verify
         KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
 
         KinesisStreamDescription kinesisStreamDescription = getDefinedTables().get(kinesisTableHandle.toSchemaTableName());
@@ -153,6 +148,7 @@ public class KinesisMetadata
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
 
         int index = 0;
+        // TODO: This was commented out, but it may be important, verify this
        /* KinesisStreamFieldGroup key = kinesisStreamDescription.getPartitionKey();
         if (key != null) {
             List<KinesisStreamFieldDescription> fields = key.getFields();
@@ -183,7 +179,6 @@ public class KinesisMetadata
     @Override
     public ColumnMetadata getColumnMetadata(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
     {
-        // TODO: method signature changed, verify
         handleResolver.convertTableHandle(tableHandle);
         KinesisColumnHandle kinesisColumnHandle = handleResolver.convertColumnHandle(columnHandle);
 

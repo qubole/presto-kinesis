@@ -22,19 +22,20 @@ import com.facebook.presto.spi.ErrorCodeSupplier;
 public enum KinesisErrorCode
         implements ErrorCodeSupplier
 {
-    // Connectors can use error codes starting at EXTERNAL
-
     /**
      * A requested data conversion is not supported.
      */
-    KINESIS_CONVERSION_NOT_SUPPORTED(0x0200_0000),
-    KINESIS_SPLIT_ERROR(0x0200_0001);
+    KINESIS_CONVERSION_NOT_SUPPORTED(0),
+    KINESIS_SPLIT_ERROR(1);
+
+    // Connectors can use error codes starting at EXTERNAL
+    public static final int StartingErrorCode = 0x0200_0000;
 
     private final ErrorCode errorCode;
 
     KinesisErrorCode(int code)
     {
-        errorCode = new ErrorCode(code, name());
+        errorCode = new ErrorCode(code + StartingErrorCode, name());
     }
 
     @Override

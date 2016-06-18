@@ -329,9 +329,14 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <!-- integration tests take a very long time so only run them in the CI server -->
+            <!-- This test DOES NOT WORK until we have a kinesis mock client : -->
           <excludes>
             <exclude>**/TestMinimalFunctionality.java</exclude>
           </excludes>
+            <systemPropertyVariables>
+                <kinesis.awsAccessKey>dunno</kinesis.awsAccessKey>
+                <kinesis.awsSecretKey>dunno</kinesis.awsSecretKey>
+            </systemPropertyVariables>
         </configuration> 
       </plugin>
 

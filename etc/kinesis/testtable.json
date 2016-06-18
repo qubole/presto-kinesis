@@ -1,0 +1,27 @@
+{
+  "tableName": "test_table",
+  "schemaName": "prod",
+  "streamName": "test_kinesis_stream",
+  "message": {
+    "dataFormat": "json",
+    "fields": [
+      {
+        "name": "client_id",
+        "type": "BIGINT",
+        "mapping": "client_id",
+        "comment": "The client ID field"
+      },
+      {
+        "name": "acct_balance",
+        "type": "DOUBLE",
+        "mapping": "acct_balance",
+        "comment": "Current account balance"
+      },
+      {
+        "name": "service_type",
+        "mapping": "service_type",
+        "type": "VARCHAR(20)"
+      }
+    ]
+  }
+}

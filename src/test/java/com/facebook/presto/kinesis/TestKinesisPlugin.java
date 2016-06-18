@@ -14,18 +14,13 @@
 package com.facebook.presto.kinesis;
 
 import java.util.List;
-import java.util.Optional;
 
-import com.facebook.presto.spi.type.TypeSignatureParameter;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
+import com.facebook.presto.type.TypeRegistry;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeManager;
-import com.facebook.presto.spi.type.TypeSignature;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import static org.testng.Assert.assertEquals;
@@ -37,7 +32,8 @@ public class TestKinesisPlugin
     public ConnectorFactory testConnectorExists()
     {
         KinesisPlugin plugin = new KinesisPlugin();
-        plugin.setTypeManager(new TestingTypeManager());
+        // Normally done by plug in manager, handle manually here
+        plugin.setTypeManager(new TypeRegistry());
 
         List<ConnectorFactory> factories = plugin.getServices(ConnectorFactory.class);
         assertNotNull(factories);
@@ -62,45 +58,11 @@ public class TestKinesisPlugin
                 .put("kinesis.secret-key", awsSecretKey)
                 .build());
         assertNotNull(c);
-    }
 
-    private static class TestingTypeManager
-            implements TypeManager
-    {
-        @Override
-        public Type getType(TypeSignature signature)
-        {
-            return null;
-        }
-
-        @Override
-        public Type getParameterizedType(String baseTypeName, List<TypeSignatureParameter> typeParameters)
-        {
-            return null;
-        }
-
-        @Override
-        public Optional<Type> getCommonSuperType(Type firstType, Type secondType)
-        {
-            return Optional.empty(); // TODO: new method and not sure what this is for
-        }
-
-        @Override
-        public boolean isTypeOnlyCoercion(Type type, Type type1)
-        {
-            return false; // TODO: new method and not sure what this is for
-        }
-
-        @Override
-        public Optional<Type> coerceTypeBase(Type type, String s)
-        {
-            return null; // TODO: new method and not sure what this is for
-        }
-
-        @Override
-        public List<Type> getTypes()
-        {
-            return ImmutableList.of();
-        }
+        // Verify that the key objects have been created
+        assertNotNull(factory.getHandleResolver());
+        assertNotNull(c.getRecordSetProvider());
+        assertNotNull(c.getSplitManager());
+        assertNotNull(c.getMetadata(KinesisTransactionHandle.INSTANCE));
     }
 }

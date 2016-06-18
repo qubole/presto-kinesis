@@ -39,16 +39,16 @@ public class KinesisClientManager
     KinesisClientManager(@Named("connectorId") String connectorId,
             KinesisConnectorConfig kinesisConnectorConfig)
     {
-        log.info("Creating new client for Consuner");
-        if (kinesisConnectorConfig.getAccessKey() == null || kinesisConnectorConfig.getSecretKey() == null) {
-            this.kinesisAwsCredentials = null;
-            this.client = new AmazonKinesisClient(new DefaultAWSCredentialsProviderChain());
-            this.dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain());
-        }
-        else {
+        log.info("Creating new client for Consumer");
+        if (nonEmpty(kinesisConnectorConfig.getAccessKey()) && nonEmpty(kinesisConnectorConfig.getSecretKey())) {
             this.kinesisAwsCredentials = new KinesisAwsCredentials(kinesisConnectorConfig.getAccessKey(), kinesisConnectorConfig.getSecretKey());
             this.client = new AmazonKinesisClient(this.kinesisAwsCredentials);
             this.dynamoDBClient = new AmazonDynamoDBClient(this.kinesisAwsCredentials);
+        }
+        else {
+            this.kinesisAwsCredentials = null;
+            this.client = new AmazonKinesisClient(new DefaultAWSCredentialsProviderChain());
+            this.dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain());
         }
 
         this.client.setEndpoint("kinesis." + kinesisConnectorConfig.getAwsRegion() + ".amazonaws.com");
@@ -68,5 +68,10 @@ public class KinesisClientManager
     public DescribeStreamRequest getDescribeStreamRequest()
     {
         return new DescribeStreamRequest();
+    }
+
+    public boolean nonEmpty(String str)
+    {
+        return str != null && !str.isEmpty();
     }
 }

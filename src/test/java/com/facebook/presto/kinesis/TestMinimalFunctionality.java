@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.kinesis;
 
+import com.facebook.presto.execution.QueryId;
+import com.facebook.presto.spi.security.Identity;
 import io.airlift.log.Logger;
 
 import java.nio.ByteBuffer;
@@ -53,10 +55,9 @@ public class TestMinimalFunctionality
 {
     private static final Logger log = Logger.get(TestMinimalFunctionality.class);
 
-    // TODO: new API with SessionPropertyManager, not sure this is right here
-    // TODO: no more setUser, should it be setIdentity ??
-        private static final Session SESSION = Session.builder(new SessionPropertyManager())
-            //.setUser("user")
+    private static final Session SESSION = Session.builder(new SessionPropertyManager())
+            .setIdentity(new Identity("user", Optional.empty()))
+            .setQueryId(QueryId.valueOf("test.query.id.123"))
             .setSource("source")
             .setCatalog("kinesis")
             .setSchema("default")

@@ -342,8 +342,8 @@ public class KinesisRecordSet
         @Override
         public Object getObject(int i)
         {
-            // TODO: new method that we need to implement
-            return null;
+            // TODO: review if we want to support this
+            throw new UnsupportedOperationException();
         }
 
         @Override

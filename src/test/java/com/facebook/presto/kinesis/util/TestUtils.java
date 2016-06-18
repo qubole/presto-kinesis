@@ -24,7 +24,6 @@ import com.facebook.presto.kinesis.KinesisStreamDescription;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.testing.QueryRunner;
 import com.google.common.base.Joiner;
-//import java.util.function.Supplier;
 import com.google.common.collect.ImmutableMap;
 
 public class TestUtils
@@ -51,8 +50,8 @@ public class TestUtils
     public static void installKinesisPlugin(EmbeddedKinesisStream embeddedKinesisStream, QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions, String accessKey, String secretKey)
     {
         KinesisPlugin kinesisPlugin = new KinesisPlugin();
-        // TODO: no clue how to fix this
-        //kinesisPlugin.setTableDescriptionSupplier(Suppliers.ofInstance(streamDescriptions));
+        // Note: function literal with provided descriptions instead of KinesisTableDescriptionSupplier:
+        kinesisPlugin.setTableDescriptionSupplier(() -> streamDescriptions);
         queryRunner.installPlugin(kinesisPlugin);
 
         Map<String, String> kinesisConfig = ImmutableMap.of(

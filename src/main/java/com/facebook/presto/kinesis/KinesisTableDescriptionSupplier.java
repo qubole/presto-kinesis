@@ -19,6 +19,7 @@ import io.airlift.log.Logger;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.Path;
 
 import java.io.IOException;
@@ -64,9 +65,8 @@ public class KinesisTableDescriptionSupplier
     {
         ImmutableMap.Builder<SchemaTableName, KinesisStreamDescription> builder = ImmutableMap.builder();
         try {
-            for (Path file : listFiles(kinesisConnectorConfig.getTableDescriptionDir())) {
-                if (Files.isRegularFile(file) && file.getFileName().endsWith(".json")) {
-                    //Prefer java.nio.file.Files.readAllBytes(java.nio.file.Path)
+            for (Path file : listFiles(Paths.get(kinesisConnectorConfig.getTableDescriptionDir()))) {
+                if (Files.isRegularFile(file) && file.getFileName().toString().endsWith("json")) {
                     KinesisStreamDescription table = streamDescriptionCodec.fromJson(Files.readAllBytes(file));
                     String schemaName = Objects.firstNonNull(table.getSchemaName(), kinesisConnectorConfig.getDefaultSchema());
                     log.debug("Kinesis table %s %s %s", schemaName, table.getTableName(), table);

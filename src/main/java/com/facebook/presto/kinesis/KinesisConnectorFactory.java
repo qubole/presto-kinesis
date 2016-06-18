@@ -18,9 +18,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
+import io.airlift.log.Logger;
 
 import java.util.Map;
 import java.util.Optional;
+
+import javax.inject.Inject;
 
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorFactory;
@@ -44,17 +47,20 @@ import com.google.inject.name.Names;
 public class KinesisConnectorFactory
         implements ConnectorFactory
 {
+    private static final Logger log = Logger.get(KinesisConnectorFactory.class);
+
     private TypeManager typeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
+    private KinesisHandleResolver handleResolver;
 
     KinesisConnectorFactory(TypeManager typeManager,
             Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
             Map<String, String> optionalConfig)
     {
         this.typeManager = checkNotNull(typeManager, "typeManager is null");
-        this.optionalConfig = checkNotNull(optionalConfig, "optionalConfig is null");
         this.tableDescriptionSupplier = checkNotNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
+        this.optionalConfig = checkNotNull(optionalConfig, "optionalConfig is null");
     }
 
     @Override
@@ -66,13 +72,14 @@ public class KinesisConnectorFactory
     @Override
     public ConnectorHandleResolver getHandleResolver()
     {
-        // TODO: new method that needs implementing
-        return null;
+        // TODO note: this was moved here from KinesisConnector in prior version
+        return this.handleResolver;
     }
 
     @Override
     public Connector create(String connectorId, Map<String, String> config)
     {
+        log.info("In connector factory create method.");
         checkNotNull(connectorId, "connectorId is null");
         checkNotNull(config, "config is null");
 
@@ -104,10 +111,21 @@ public class KinesisConnectorFactory
                         .setOptionalConfigurationProperties(optionalConfig)
                         .initialize();
 
-                return injector.getInstance(KinesisConnector.class);
+            injector.injectMembers(this);
+
+            log.info("Done with injector.  Returning the connector itself.");
+            return injector.getInstance(KinesisConnector.class);
         }
         catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    @Inject
+    public synchronized void setHandleResolver(KinesisHandleResolver handleResolver)
+    {
+        // Should be injected here upon create call above
+        log.info("Injecting handle resolver into connector factory, baby!");
+        this.handleResolver = checkNotNull(handleResolver, "handleResolver is null");
     }
 }
