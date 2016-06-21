@@ -21,6 +21,12 @@
         "name": "service_type",
         "mapping": "service_type",
         "type": "VARCHAR(20)"
+      },
+      {
+        "name": "signup_date",
+        "mapping": "signup_date",
+        "type": "DATE",
+        "dataFormat": "iso8601"
       }
     ]
   }

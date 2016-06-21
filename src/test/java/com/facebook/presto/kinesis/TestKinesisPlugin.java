@@ -15,6 +15,7 @@ package com.facebook.presto.kinesis;
 
 import java.util.List;
 
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
@@ -23,9 +24,14 @@ import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.google.common.collect.ImmutableMap;
 
+import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
+/**
+ * Test that the plug in API is satisfied and all of the required objects can be created.
+ */
 public class TestKinesisPlugin
 {
     @Test
@@ -59,10 +65,12 @@ public class TestKinesisPlugin
                 .build());
         assertNotNull(c);
 
-        // Verify that the key objects have been created
+        // Verify that the key objects have been created on the connector
         assertNotNull(factory.getHandleResolver());
         assertNotNull(c.getRecordSetProvider());
         assertNotNull(c.getSplitManager());
         assertNotNull(c.getMetadata(KinesisTransactionHandle.INSTANCE));
+        ConnectorTransactionHandle handle = c.beginTransaction(READ_COMMITTED, true);
+        assertTrue(handle != null && handle instanceof KinesisTransactionHandle);
     }
 }

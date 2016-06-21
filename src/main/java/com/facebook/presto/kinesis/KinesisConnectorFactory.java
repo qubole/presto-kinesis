@@ -125,7 +125,7 @@ public class KinesisConnectorFactory
     public synchronized void setHandleResolver(KinesisHandleResolver handleResolver)
     {
         // Should be injected here upon create call above
-        log.info("Injecting handle resolver into connector factory, baby!");
+        log.info("Injecting handle resolver into connector factory.");
         this.handleResolver = checkNotNull(handleResolver, "handleResolver is null");
     }
 }

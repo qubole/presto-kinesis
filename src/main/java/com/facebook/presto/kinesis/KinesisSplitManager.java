@@ -45,12 +45,12 @@ public class KinesisSplitManager
 {
     private final String connectorId;
     private final KinesisHandleResolver handleResolver;
-    private final KinesisClientManager clientManager;
+    private final KinesisClientProvider clientManager;
 
     @Inject
     public  KinesisSplitManager(@Named("connectorId") String connectorId,
             KinesisHandleResolver handleResolver,
-            KinesisClientManager clientManager)
+            KinesisClientProvider clientManager)
     {
         this.connectorId = connectorId;
         this.handleResolver = handleResolver;
@@ -66,18 +66,18 @@ public class KinesisSplitManager
         DescribeStreamRequest describeStreamRequest = clientManager.getDescribeStreamRequest();
         describeStreamRequest.setStreamName(kinesisTableHandle.getStreamName());
 
-        String exclusiveStartShardId = null;
-        describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
-        DescribeStreamResult describeStreamResult = clientManager.getClient().describeStream(describeStreamRequest);
-
-        String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
-        if (!streamStatus.equals("ACTIVE") && !streamStatus.equals("UPDATING")) {
-            throw new ResourceNotFoundException("Stream not Active");
-        }
-
         // Collect shards from Kinesis
+        String exclusiveStartShardId = null;
         List<Shard> shards = new ArrayList<>();
         do {
+            describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
+            DescribeStreamResult describeStreamResult = clientManager.getClient().describeStream(describeStreamRequest);
+
+            String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
+            if (!streamStatus.equals("ACTIVE") && !streamStatus.equals("UPDATING")) {
+                throw new ResourceNotFoundException("Stream not Active");
+            }
+
             shards.addAll(describeStreamResult.getStreamDescription().getShards());
 
             if (describeStreamResult.getStreamDescription().getHasMoreShards() && (shards.size() > 0)) {
@@ -86,10 +86,8 @@ public class KinesisSplitManager
             else {
                 exclusiveStartShardId = null;
             }
-
         } while (exclusiveStartShardId != null);
 
-        // TODO: verify shard structure and use of connector session
         ImmutableList.Builder<ConnectorSplit> builder = ImmutableList.builder();
         for (Shard shard : shards) {
             KinesisSplit split = new KinesisSplit(connectorId,

@@ -34,14 +34,14 @@ public class KinesisRecordSetProvider
         implements ConnectorRecordSetProvider
 {
     private final KinesisHandleResolver handleResolver;
-    private final KinesisClientManager clientManager;
+    private final KinesisClientProvider clientManager;
     private final KinesisDecoderRegistry registry;
     private final KinesisConnectorConfig kinesisConnectorConfig;
 
     @Inject
     public  KinesisRecordSetProvider(KinesisDecoderRegistry registry,
             KinesisHandleResolver handleResolver,
-            KinesisClientManager clientManager,
+            KinesisClientProvider clientManager,
             KinesisConnectorConfig kinesisConnectorConfig)
     {
         this.registry = checkNotNull(registry, "registry is null");

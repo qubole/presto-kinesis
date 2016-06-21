@@ -50,7 +50,7 @@ public class KinesisRecordSet
     private static final byte [] EMPTY_BYTE_ARRAY = new byte [0];
 
     private final KinesisSplit split;
-    private final KinesisClientManager clientManager;
+    private final KinesisClientProvider clientManager;
     private final KinesisConnectorConfig kinesisConnectorConfig;
 
     private final KinesisRowDecoder messageDecoder;
@@ -71,7 +71,7 @@ public class KinesisRecordSet
     private final Set<KinesisFieldValueProvider> globalInternalFieldValueProviders;
 
     KinesisRecordSet(KinesisSplit split,
-            KinesisClientManager clientManager,
+            KinesisClientProvider clientManager,
             List<KinesisColumnHandle> columnHandles,
             KinesisRowDecoder messageDecoder,
             Map<KinesisColumnHandle, KinesisFieldDecoder<?>> messageFieldDecoders,

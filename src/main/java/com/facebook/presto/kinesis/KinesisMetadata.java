@@ -148,17 +148,7 @@ public class KinesisMetadata
         ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
 
         int index = 0;
-        // TODO: This was commented out, but it may be important, verify this
-       /* KinesisStreamFieldGroup key = kinesisStreamDescription.getPartitionKey();
-        if (key != null) {
-            List<KinesisStreamFieldDescription> fields = key.getFields();
-            if (fields != null) {
-                for (KinesisStreamFieldDescription kinesisStreamFieldDescription : fields) {
-                    columnHandles.put(kinesisStreamFieldDescription.getName(), kinesisStreamFieldDescription.getColumnHandle(connectorId, true, index++));
-                }
-            }
-        }*/
-
+        // Note: partition key and related fields are handled by internalFieldDescriptions below
         KinesisStreamFieldGroup message = kinesisStreamDescription.getMessage();
         if (message != null) {
             List<KinesisStreamFieldDescription> fields = message.getFields();
