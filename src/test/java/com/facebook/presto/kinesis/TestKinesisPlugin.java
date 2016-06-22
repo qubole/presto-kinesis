@@ -15,6 +15,7 @@ package com.facebook.presto.kinesis;
 
 import java.util.List;
 
+import com.facebook.presto.metadata.InMemoryNodeManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
@@ -40,6 +41,7 @@ public class TestKinesisPlugin
         KinesisPlugin plugin = new KinesisPlugin();
         // Normally done by plug in manager, handle manually here
         plugin.setTypeManager(new TypeRegistry());
+        plugin.setNodeManager(new InMemoryNodeManager());
 
         List<ConnectorFactory> factories = plugin.getServices(ConnectorFactory.class);
         assertNotNull(factories);
@@ -57,6 +59,9 @@ public class TestKinesisPlugin
     public void testSpinUp(String awsAccessKey, String awsSecretKey)
     {
         ConnectorFactory factory = testConnectorExists();
+        // Gotcha!  This has to be created before we setup the injector in the factory:
+        assertNotNull(factory.getHandleResolver());
+
         Connector c = factory.create("kinesis.test-connector", ImmutableMap.<String, String>builder()
                 .put("kinesis.table-names", "test")
                 .put("kinesis.hide-internal-columns", "false")
@@ -66,7 +71,6 @@ public class TestKinesisPlugin
         assertNotNull(c);
 
         // Verify that the key objects have been created on the connector
-        assertNotNull(factory.getHandleResolver());
         assertNotNull(c.getRecordSetProvider());
         assertNotNull(c.getSplitManager());
         assertNotNull(c.getMetadata(KinesisTransactionHandle.INSTANCE));

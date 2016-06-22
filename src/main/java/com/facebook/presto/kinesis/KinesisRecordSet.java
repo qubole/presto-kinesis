@@ -15,6 +15,7 @@ package com.facebook.presto.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -36,6 +37,7 @@ import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 
 import com.facebook.presto.kinesis.decoder.KinesisFieldDecoder;
 import com.facebook.presto.kinesis.decoder.KinesisRowDecoder;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.type.Type;
@@ -50,6 +52,7 @@ public class KinesisRecordSet
     private static final byte [] EMPTY_BYTE_ARRAY = new byte [0];
 
     private final KinesisSplit split;
+    private final ConnectorSession session;
     private final KinesisClientProvider clientManager;
     private final KinesisConnectorConfig kinesisConnectorConfig;
 
@@ -71,6 +74,7 @@ public class KinesisRecordSet
     private final Set<KinesisFieldValueProvider> globalInternalFieldValueProviders;
 
     KinesisRecordSet(KinesisSplit split,
+            ConnectorSession session,
             KinesisClientProvider clientManager,
             List<KinesisColumnHandle> columnHandles,
             KinesisRowDecoder messageDecoder,
@@ -78,6 +82,7 @@ public class KinesisRecordSet
             KinesisConnectorConfig kinesisConnectorConfig)
     {
         this.split = checkNotNull(split, "split is null");
+        this.session = checkNotNull(session, "session is null");
         this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "KinesisConnectorConfig is null");
 
         this.globalInternalFieldValueProviders = ImmutableSet.of(
@@ -121,8 +126,8 @@ public class KinesisRecordSet
                 String dynamoDBTable = split.getStreamName();
                 int curIterationNumber = kinesisConnectorConfig.getIterationNumber();
 
-                String sessionIterationNo = KinesisTableHandle.getSessionProperty(split.getSession(), "iteration_number");
-                String sessionLogicalName = KinesisTableHandle.getSessionProperty(split.getSession(), "checkpoint_logical_name");
+                String sessionIterationNo = KinesisTableHandle.getSessionProperty(this.session, "iteration_number");
+                String sessionLogicalName = KinesisTableHandle.getSessionProperty(this.session, "checkpoint_logical_name");
 
                 if (sessionIterationNo != null) {
                     curIterationNumber = Integer.parseInt(sessionIterationNo);

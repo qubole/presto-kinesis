@@ -18,7 +18,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 
-import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.HostAddress;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -40,12 +39,10 @@ public class KinesisSplit
     private final String shardId;
     private final String start;
     private final String end;
-    private final ConnectorSession session;
 
     @JsonCreator
     public KinesisSplit(
             @JsonProperty("connectorId") String connectorId,
-            @JsonProperty("session") ConnectorSession session,
             @JsonProperty("streamName") String streamName,
             @JsonProperty("messageDataFormat") String messageDataFormat,
             @JsonProperty("shardId") String shardId,
@@ -53,7 +50,6 @@ public class KinesisSplit
             @JsonProperty("end") String end)
     {
         this.connectorId = checkNotNull(connectorId, "connector id is null");
-        this.session = checkNotNull(session, "connector session is null");
         this.streamName = checkNotNull(streamName, "streamName is null");
         this.messageDataFormat = checkNotNull(messageDataFormat, "messageDataFormat is null");
         this.shardId = shardId;
@@ -65,12 +61,6 @@ public class KinesisSplit
     public String getConnectorId()
     {
         return connectorId;
-    }
-
-    @JsonProperty
-    public ConnectorSession getSession()
-    {
-        return session;
     }
 
     @JsonProperty

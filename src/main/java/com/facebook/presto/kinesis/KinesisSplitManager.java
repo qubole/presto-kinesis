@@ -91,7 +91,6 @@ public class KinesisSplitManager
         ImmutableList.Builder<ConnectorSplit> builder = ImmutableList.builder();
         for (Shard shard : shards) {
             KinesisSplit split = new KinesisSplit(connectorId,
-                    session,
                     kinesisTableHandle.getStreamName(),
                     kinesisTableHandle.getMessageDataFormat(),
                     shard.getShardId(),

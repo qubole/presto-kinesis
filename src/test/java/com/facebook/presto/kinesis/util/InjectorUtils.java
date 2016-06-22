@@ -20,6 +20,8 @@ import com.facebook.presto.kinesis.KinesisClientProvider;
 import com.facebook.presto.kinesis.KinesisConnectorModule;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
 import com.facebook.presto.kinesis.KinesisTableDescriptionSupplier;
+import com.facebook.presto.metadata.InMemoryNodeManager;
+import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.type.TypeRegistry;
@@ -115,8 +117,8 @@ public class InjectorUtils
     {
         try {
             KinesisTestClientManager clientManager = new KinesisTestClientManager();
+            KinesisConnectorModule.setAltProvider(clientManager);
             KinesisConnectorModule mainModule = new KinesisConnectorModule();
-            mainModule.setAltProvider(clientManager);
 
             Bootstrap app = new Bootstrap(
                     new JsonModule(),
@@ -128,6 +130,7 @@ public class InjectorUtils
                         {
                             binder.bindConstant().annotatedWith(Names.named("connectorId")).to("kinesis-connector");
                             binder.bind(TypeManager.class).toInstance(new TypeRegistry());
+                            binder.bind(NodeManager.class).toInstance(new InMemoryNodeManager());
 
                             if (streamDescriptionsOpt.isPresent()) {
                                 Supplier<Map<SchemaTableName, KinesisStreamDescription>> supplier = () -> streamDescriptionsOpt.get();

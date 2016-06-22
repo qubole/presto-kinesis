@@ -16,12 +16,17 @@ package com.facebook.presto.kinesis.util;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
 
 import com.facebook.presto.kinesis.KinesisPlugin;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
+import com.facebook.presto.kinesis.KinesisStreamFieldDescription;
+import com.facebook.presto.kinesis.KinesisStreamFieldGroup;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.testing.QueryRunner;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
@@ -67,5 +72,17 @@ public class TestUtils
         return new AbstractMap.SimpleImmutableEntry<>(
                 schemaTableName,
                 new KinesisStreamDescription(schemaTableName.getTableName(), schemaTableName.getSchemaName(), streamName, null));
+    }
+
+    public static Map.Entry<SchemaTableName, KinesisStreamDescription> createSimpleJsonStreamDescription(String streamName, SchemaTableName schemaTableName)
+    {
+        // Format: {"id" : 1324, "name" : "some string"}
+        ArrayList<KinesisStreamFieldDescription> fieldList = new ArrayList<KinesisStreamFieldDescription>();
+        fieldList.add(new KinesisStreamFieldDescription("id", BigintType.BIGINT, "id", "comment", null, null, false));
+        fieldList.add(new KinesisStreamFieldDescription("name", VarcharType.VARCHAR, "name", "comment", null, null, false));
+        KinesisStreamFieldGroup grp = new KinesisStreamFieldGroup("json", fieldList);
+
+        KinesisStreamDescription desc = new KinesisStreamDescription(schemaTableName.getTableName(), schemaTableName.getSchemaName(), streamName, grp);
+        return new AbstractMap.SimpleImmutableEntry<>(schemaTableName, desc);
     }
 }

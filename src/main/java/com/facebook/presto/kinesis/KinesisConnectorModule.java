@@ -15,7 +15,7 @@ package com.facebook.presto.kinesis;
 
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
@@ -35,24 +35,24 @@ import com.google.inject.multibindings.Multibinder;
 public class KinesisConnectorModule
         implements Module
 {
-    private KinesisClientProvider altProvider = null;
+    private static KinesisClientProvider altProvider = null;
 
-    public KinesisClientProvider getAltProvider()
+    public static KinesisClientProvider getAltProvider()
     {
         return altProvider;
     }
 
-    public void setAltProvider(KinesisClientProvider altProvider)
+    public static void setAltProvider(KinesisClientProvider anAltProvider)
     {
-        this.altProvider = altProvider;
+        altProvider = anAltProvider;
     }
 
     @Override
     public void configure(Binder binder)
     {
+        // Note: handle resolver handled separately, along with several other classes.
         binder.bind(KinesisConnector.class).in(Scopes.SINGLETON);
 
-        binder.bind(KinesisHandleResolver.class).in(Scopes.SINGLETON); // Kafka connector doesn't have this
         binder.bind(KinesisMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KinesisSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(KinesisRecordSetProvider.class).in(Scopes.SINGLETON);
@@ -62,11 +62,11 @@ public class KinesisConnectorModule
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(KinesisStreamDescription.class);
 
-        if (this.altProvider == null) {
+        if (altProvider == null) {
             binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
         }
         else {
-            binder.bind(KinesisClientProvider.class).toInstance(this.altProvider);
+            binder.bind(KinesisClientProvider.class).toInstance(altProvider);
         }
 
         binder.install(new KinesisDecoderModule());
@@ -93,7 +93,7 @@ public class KinesisConnectorModule
         public TypeDeserializer(TypeManager typeManager)
         {
             super(Type.class);
-            this.typeManager = checkNotNull(typeManager, "typeManager is null");
+            this.typeManager = requireNonNull(typeManager, "typeManager is null");
         }
 
         @Override
