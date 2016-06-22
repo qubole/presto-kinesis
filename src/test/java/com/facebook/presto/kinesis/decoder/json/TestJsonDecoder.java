@@ -15,7 +15,9 @@ package com.facebook.presto.kinesis.decoder.json;
 
 import static com.facebook.presto.kinesis.decoder.util.DecoderTestUtil.checkIsNull;
 import static com.facebook.presto.kinesis.decoder.util.DecoderTestUtil.checkValue;
+import static com.facebook.presto.kinesis.decoder.util.DecoderTestUtil.findValueProvider;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import io.airlift.log.Logger;
 import org.testng.annotations.Test;
 
 import io.airlift.json.ObjectMapperProvider;
@@ -41,6 +44,7 @@ import com.google.common.io.ByteStreams;
 
 public class TestJsonDecoder
 {
+    private static final Logger log = Logger.get(TestJsonDecoder.class);
     private static final JsonKinesisFieldDecoder DEFAULT_FIELD_DECODER = new JsonKinesisFieldDecoder();
     private static final ObjectMapperProvider PROVIDER = new ObjectMapperProvider();
 
@@ -79,6 +83,43 @@ public class TestJsonDecoder
         checkValue(providers, row3, 493857959588286460L);
         checkValue(providers, row4, 7630);
         checkValue(providers, row5, true);
+    }
+
+    @Test
+    public void testOtherExtracts()
+            throws Exception
+    {
+        // Test other scenarios: deeper dive into object, get JSON constructs as strings, etc.
+        byte[] json = ByteStreams.toByteArray(TestJsonDecoder.class.getResourceAsStream("/decoder/json/event.json"));
+
+        JsonKinesisRowDecoder rowDecoder = new JsonKinesisRowDecoder(PROVIDER.get());
+        KinesisColumnHandle row1 = new KinesisColumnHandle("", 0, "event_source", VarcharType.VARCHAR, "source", null, null, false, false);
+        KinesisColumnHandle row2 = new KinesisColumnHandle("", 1, "user", VarcharType.VARCHAR, "user/handle", null, null, false, false);
+        KinesisColumnHandle row3 = new KinesisColumnHandle("", 2, "user_string", VarcharType.VARCHAR, "user", null, null, false, false);
+        KinesisColumnHandle row4 = new KinesisColumnHandle("", 3, "timestamp", BigintType.BIGINT, "timestamp", null, null, false, false);
+        KinesisColumnHandle row5 = new KinesisColumnHandle("", 4, "browser_name", VarcharType.VARCHAR, "environment/browser/name", null, null, false, false);
+        KinesisColumnHandle row6 = new KinesisColumnHandle("", 5, "tags_array", VarcharType.VARCHAR, "tags", null, null, false, false);
+
+        List<KinesisColumnHandle> columns = ImmutableList.of(row1, row2, row3, row4, row5, row6);
+        Set<KinesisFieldValueProvider> providers = new HashSet<>();
+
+        log.info("Decoding row from event JSON file");
+        boolean valid = rowDecoder.decodeRow(json, providers, columns, buildMap(columns));
+        assertTrue(valid);
+
+        assertEquals(providers.size(), columns.size());
+
+        checkValue(providers, row1, "otherworld");
+        checkValue(providers, row2, "joeblow");
+        checkValue(providers, row3, "{\"email\":\"joeblow@wherever.com\",\"handle\":\"joeblow\"}");
+        KinesisFieldValueProvider provider = findValueProvider(providers, row6);
+        assertNotNull(provider);
+        log.info(new String(provider.getSlice().getBytes(), StandardCharsets.UTF_8));
+
+        checkValue(providers, row4, 1450214872847L);
+        checkValue(providers, row5, "Chrome");
+        checkValue(providers, row6, "[\"tag1\",\"tag2\",\"tag3\"]");
+        log.info("DONE");
     }
 
     @Test

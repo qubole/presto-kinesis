@@ -27,14 +27,14 @@ import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
 import com.google.inject.name.Named;
 
-// TODO note: removed old canHandle methods, no longer needed.  Also removed configuration info, not used.
+// TODO note: made constructor public for testing purposes
 public class KinesisHandleResolver
         implements ConnectorHandleResolver
 {
     private final String connectorId;
 
     @Inject
-    KinesisHandleResolver(@Named("connectorId") String connectorId)
+    public KinesisHandleResolver(@Named("connectorId") String connectorId)
     {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
     }

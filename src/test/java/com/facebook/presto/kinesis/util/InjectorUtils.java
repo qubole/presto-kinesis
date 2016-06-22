@@ -18,6 +18,7 @@ import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.facebook.presto.kinesis.KinesisClientProvider;
 import com.facebook.presto.kinesis.KinesisConnectorModule;
+import com.facebook.presto.kinesis.KinesisHandleResolver;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
 import com.facebook.presto.kinesis.KinesisTableDescriptionSupplier;
 import com.facebook.presto.metadata.InMemoryNodeManager;
@@ -50,6 +51,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class InjectorUtils
 {
+    public static final String connectorName = "kinesis";
+
     private InjectorUtils() {}
 
     /**
@@ -128,9 +131,10 @@ public class InjectorUtils
                         @Override
                         public void configure(Binder binder)
                         {
-                            binder.bindConstant().annotatedWith(Names.named("connectorId")).to("kinesis-connector");
+                            binder.bindConstant().annotatedWith(Names.named("connectorId")).to("kinesis");
                             binder.bind(TypeManager.class).toInstance(new TypeRegistry());
                             binder.bind(NodeManager.class).toInstance(new InMemoryNodeManager());
+                            binder.bind(KinesisHandleResolver.class).toInstance(new KinesisHandleResolver(connectorName));
 
                             if (streamDescriptionsOpt.isPresent()) {
                                 Supplier<Map<SchemaTableName, KinesisStreamDescription>> supplier = () -> streamDescriptionsOpt.get();

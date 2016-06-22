@@ -45,12 +45,9 @@ public class JsonKinesisDecoderModule
 
         bindFieldDecoder(binder, JsonKinesisFieldDecoder.class);
         bindFieldDecoder(binder, RFC2822JsonKinesisFieldDecoder.class);
-        // TODO: Implement other Json field decoders
-        /*
         bindFieldDecoder(binder, ISO8601JsonKinesisFieldDecoder.class);
         bindFieldDecoder(binder, SecondsSinceEpochJsonKinesisFieldDecoder.class);
         bindFieldDecoder(binder, MillisecondsSinceEpochJsonKinesisFieldDecoder.class);
         bindFieldDecoder(binder, CustomDateTimeJsonKinesisFieldDecoder.class);
-        */
     }
 }

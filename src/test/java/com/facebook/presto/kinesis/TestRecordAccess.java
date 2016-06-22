@@ -139,6 +139,7 @@ public class TestRecordAccess
             String name = UUID.randomUUID().toString();
             String jsonVal = String.format(jsonFormat, id, name);
 
+            // ? with StandardCharsets.UTF_8
             putRecordsRequestEntry.setData(ByteBuffer.wrap(jsonVal.getBytes()));
             putRecordsRequestEntry.setPartitionKey(Long.toString(id));
             putRecordsRequestEntryList.add(putRecordsRequestEntry);
@@ -191,15 +192,18 @@ public class TestRecordAccess
     public void testJsonStream()
         throws Exception
     {
-        // Simple case: add a few specific items and let's see if this really works
+        // Simple case: add a few specific items, query object and internal fields:
         createJsonMessages(jsonStreamName, 4, 100);
 
         MaterializedResult result = queryRunner.execute("Select id, name, _shard_id, _message_length, _message from " + jsonStreamName + " where _message_length >= 1");
         assertEquals(result.getRowCount(), 4);
         List<Type> types = result.getTypes();
+        assertEquals(types.size(), 5);
         log.info("Types : " + types.toString());
         List<MaterializedRow> rows = result.getMaterializedRows();
+        assertEquals(rows.size(), 4);
         for (MaterializedRow row : rows) {
+            assertEquals(row.getFieldCount(), 5);
             log.info("ROW: " + row.toString());
         }
     }
