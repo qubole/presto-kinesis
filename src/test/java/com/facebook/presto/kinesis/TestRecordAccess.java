@@ -53,7 +53,8 @@ import static org.testng.Assert.assertEquals;
  * Test record access and querying along with all associated setup.
  *
  * This is a lighter weight integration test that exercises more parts of
- * the plug in without requiring an actual Kinesis connection.
+ * the plug in without requiring an actual Kinesis connection.  It uses the mock
+ * kinesis client so no AWS activity will occur.
  */
 @Test(singleThreaded = true)
 public class TestRecordAccess
@@ -105,7 +106,7 @@ public class TestRecordAccess
                     put(createSimpleJsonStreamDescription(jsonStreamName, new SchemaTableName("default", jsonStreamName))).
                     build();
 
-        TestUtils.installKinesisPlugin(null, queryRunner, streamMap, "", "");
+        TestUtils.installKinesisPlugin(queryRunner, streamMap, "", "");
         log.info("Completed spinUp steps.  *** READY FOR QUERIES ***");
     }
 
@@ -197,9 +198,13 @@ public class TestRecordAccess
 
         MaterializedResult result = queryRunner.execute("Select id, name, _shard_id, _message_length, _message from " + jsonStreamName + " where _message_length >= 1");
         assertEquals(result.getRowCount(), 4);
+
         List<Type> types = result.getTypes();
         assertEquals(types.size(), 5);
+        assertEquals(types.get(0).toString(), "bigint");
+        assertEquals(types.get(1).toString(), "varchar");
         log.info("Types : " + types.toString());
+
         List<MaterializedRow> rows = result.getMaterializedRows();
         assertEquals(rows.size(), 4);
         for (MaterializedRow row : rows) {

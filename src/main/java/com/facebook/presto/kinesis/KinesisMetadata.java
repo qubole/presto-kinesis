@@ -103,7 +103,6 @@ public class KinesisMetadata
     public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession connectorSession, ConnectorTableHandle table,
                                                             Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> optional)
     {
-        // TODO note: this was taken pretty much straight from Kafta, may need review
         KinesisTableHandle tblHandle = handleResolver.convertTableHandle(table);
         ConnectorTableLayout layout = new ConnectorTableLayout(new KinesisTableLayoutHandle(connectorId, tblHandle));
         return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));
@@ -119,6 +118,7 @@ public class KinesisMetadata
     public ConnectorTableMetadata getTableMetadata(ConnectorSession connectorSession, ConnectorTableHandle tableHandle)
     {
         KinesisTableHandle kinesisTableHandle = handleResolver.convertTableHandle(tableHandle);
+        log.debug("Called getTableMetadata on %s.%s", kinesisTableHandle.getSchemaName(), kinesisTableHandle.getTableName());
         return getTableMetadata(kinesisTableHandle.toSchemaTableName());
     }
 
@@ -179,11 +179,18 @@ public class KinesisMetadata
     public Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
     {
         checkNotNull(prefix, "prefix is null");
+        log.debug("Called listTableColumns on %s.%s", prefix.getSchemaName(), prefix.getTableName());
 
         ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
 
-        // what if prefix.getTableName == null
-        List<SchemaTableName> tableNames = prefix.getSchemaName() == null ? listTables(session, null) : ImmutableList.of(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
+        // NOTE: prefix.getTableName or prefix.getSchemaName can be null
+        List<SchemaTableName> tableNames;
+        if (prefix.getSchemaName() != null && prefix.getTableName() != null) {
+            tableNames = ImmutableList.of(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
+        }
+        else {
+            tableNames = listTables(session, null);
+        }
 
         for (SchemaTableName tableName : tableNames) {
             ConnectorTableMetadata tableMetadata = getTableMetadata(tableName);

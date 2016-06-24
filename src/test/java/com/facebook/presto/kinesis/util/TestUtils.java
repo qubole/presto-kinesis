@@ -52,7 +52,7 @@ public class TestUtils
         return properties;
     }
 
-    public static void installKinesisPlugin(EmbeddedKinesisStream embeddedKinesisStream, QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions, String accessKey, String secretKey)
+    public static void installKinesisPlugin(QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions, String accessKey, String secretKey)
     {
         KinesisPlugin kinesisPlugin = new KinesisPlugin();
         // Note: function literal with provided descriptions instead of KinesisTableDescriptionSupplier:

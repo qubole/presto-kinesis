@@ -50,6 +50,13 @@ import static org.testng.Assert.assertTrue;
 import static com.facebook.presto.kinesis.util.TestUtils.createEmptyStreamDescription;
 import static org.testng.Assert.assertEquals;
 
+/**
+ * Note: this is an integration test that connects to AWS Kinesis.
+ *
+ * Only run if you have an account setup where you can create streams and put/get records.
+ * You may incur AWS charges if you run this test.  You probably want to setup an IAM
+ * user for your CI server to use.
+ */
 @Test(singleThreaded = true)
 public class TestMinimalFunctionality
 {
@@ -98,7 +105,7 @@ public class TestMinimalFunctionality
         streamName = "test_" + UUID.randomUUID().toString().replaceAll("-", "_");
         embeddedKinesisStream.createStream(2, streamName);
         this.queryRunner = new StandaloneQueryRunner(SESSION);
-        TestUtils.installKinesisPlugin(embeddedKinesisStream, queryRunner,
+        TestUtils.installKinesisPlugin(queryRunner,
                 ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
                 put(createEmptyStreamDescription(streamName, new SchemaTableName("default", streamName))).build(),
                 accessKey, secretKey);

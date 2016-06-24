@@ -10,6 +10,8 @@ will appear as data is pushed into the stream, and disappear as they
 are dropped once their time expires. (A message is held up for 24
 hours by kinesis streams).
 
+This version has been updated to work with Presto 0.147.
+
 > This connector is Read-Only connector. It can only fetch data from
 kinesis streams, but can not create streams or push data into the al
 ready existing streams.
@@ -26,9 +28,9 @@ file which contains the connector code and its dependency jars.
 
 You will need to augment your presto installation on coordinator and worker nodes to make sure the connector is loaded and configured properly. We will use $PRESTO_HOME to refer to the presto installation directory.
 
-* Edit file ``$PRESTO_HOME/etc/config.properties`` and add ``kinesis`` to the datasources property (e.g. ``datasources=hive,kinesis``)
-* Create a ``kinesis.properties`` file in ``$PRESTO_HOME/etc/catalog`` directory. See [Connector Configuration] (https://github.com/snarayananqubole/presto-kinesis/wiki/Connector-Configuration)
-* Create directory ``$PRESTO_HOME/etc/kinesis`` and create a json table definition file for every presto-kinesis table. See [Table Definition] (https://github.com/snarayananqubole/presto-kinesis/wiki/Table-Definitions)
+* Create a ``kinesis.properties`` file in ``$PRESTO_HOME/etc/catalog`` directory. See [Connector Configuration] (https://github.com/stitchfix/presto-kinesis/wiki/Connector-Configuration)
+* Create directory ``$PRESTO_HOME/etc/kinesis`` and create a json table definition file for every presto-kinesis table. See [Table Definition] (https://github.com/stitchfix/presto-kinesis/wiki/Table-Definitions)
 * Copy contents of the tarred file to ``$PRESTO_HOME/plugin/presto-kinesis`` (create it if necessary)
+* Restart the Presto server to make the changes take effect
 
 

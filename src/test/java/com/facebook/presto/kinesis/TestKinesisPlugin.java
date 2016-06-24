@@ -16,6 +16,7 @@ package com.facebook.presto.kinesis;
 import java.util.List;
 
 import com.facebook.presto.metadata.InMemoryNodeManager;
+import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
@@ -32,6 +33,9 @@ import static org.testng.Assert.assertTrue;
 
 /**
  * Test that the plug in API is satisfied and all of the required objects can be created.
+ *
+ * This will not make any calls to AWS, it merely checks that all of the Plug in SPI
+ * objects are in place.
  */
 public class TestKinesisPlugin
 {
@@ -59,7 +63,7 @@ public class TestKinesisPlugin
     public void testSpinUp(String awsAccessKey, String awsSecretKey)
     {
         ConnectorFactory factory = testConnectorExists();
-        // Gotcha!  This has to be created before we setup the injector in the factory:
+        // Important: this has to be created before we setup the injector in the factory:
         assertNotNull(factory.getHandleResolver());
 
         Connector c = factory.create("kinesis.test-connector", ImmutableMap.<String, String>builder()
@@ -73,7 +77,9 @@ public class TestKinesisPlugin
         // Verify that the key objects have been created on the connector
         assertNotNull(c.getRecordSetProvider());
         assertNotNull(c.getSplitManager());
-        assertNotNull(c.getMetadata(KinesisTransactionHandle.INSTANCE));
+        ConnectorMetadata md = c.getMetadata(KinesisTransactionHandle.INSTANCE);
+        assertNotNull(md);
+
         ConnectorTransactionHandle handle = c.beginTransaction(READ_COMMITTED, true);
         assertTrue(handle != null && handle instanceof KinesisTransactionHandle);
     }

@@ -14,7 +14,10 @@
 package com.facebook.presto.kinesis;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Named;
 
@@ -47,6 +50,50 @@ public class KinesisSplitManager
     private final KinesisHandleResolver handleResolver;
     private final KinesisClientProvider clientManager;
 
+    private Map<String, InternalStreamDescription> streamMap = Collections.synchronizedMap(new HashMap<String, InternalStreamDescription>());
+
+    /**
+     * Cache the result of a Kinesis describe stream call so we don't need to retrieve
+     * the shards for every single query.
+     */
+    public static class InternalStreamDescription
+    {
+        private String streamName = "";
+        private List<Shard> shards = new ArrayList<>();
+        private long createTimeStamp;
+
+        public InternalStreamDescription(String aName)
+        {
+            this.streamName = aName;
+            this.createTimeStamp = System.currentTimeMillis();
+        }
+
+        public long getCreateTimeStamp()
+        {
+            return this.createTimeStamp;
+        }
+
+        public String getStreamName()
+        {
+            return streamName;
+        }
+
+        public List<Shard> getShards()
+        {
+            return shards;
+        }
+
+        public void addShard(Shard s)
+        {
+            this.shards.add(s);
+        }
+
+        public void addAllShards(List<Shard> shards)
+        {
+            this.shards.addAll(shards);
+        }
+    }
+
     @Inject
     public  KinesisSplitManager(@Named("connectorId") String connectorId,
             KinesisHandleResolver handleResolver,
@@ -63,33 +110,10 @@ public class KinesisSplitManager
         KinesisTableLayoutHandle kinesislayout = handleResolver.convertLayout(layout);
         KinesisTableHandle kinesisTableHandle = kinesislayout.getTable();
 
-        DescribeStreamRequest describeStreamRequest = clientManager.getDescribeStreamRequest();
-        describeStreamRequest.setStreamName(kinesisTableHandle.getStreamName());
-
-        // Collect shards from Kinesis
-        String exclusiveStartShardId = null;
-        List<Shard> shards = new ArrayList<>();
-        do {
-            describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
-            DescribeStreamResult describeStreamResult = clientManager.getClient().describeStream(describeStreamRequest);
-
-            String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
-            if (!streamStatus.equals("ACTIVE") && !streamStatus.equals("UPDATING")) {
-                throw new ResourceNotFoundException("Stream not Active");
-            }
-
-            shards.addAll(describeStreamResult.getStreamDescription().getShards());
-
-            if (describeStreamResult.getStreamDescription().getHasMoreShards() && (shards.size() > 0)) {
-                exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
-            }
-            else {
-                exclusiveStartShardId = null;
-            }
-        } while (exclusiveStartShardId != null);
+        InternalStreamDescription desc = this.getStreamDescription(kinesisTableHandle.getStreamName());
 
         ImmutableList.Builder<ConnectorSplit> builder = ImmutableList.builder();
-        for (Shard shard : shards) {
+        for (Shard shard : desc.getShards()) {
             KinesisSplit split = new KinesisSplit(connectorId,
                     kinesisTableHandle.getStreamName(),
                     kinesisTableHandle.getMessageDataFormat(),
@@ -100,5 +124,48 @@ public class KinesisSplitManager
         }
 
         return new FixedSplitSource(connectorId, builder.build());
+    }
+
+    /**
+     * Internal method to retrieve the stream description and get the shards from AWS.
+     *
+     * @param streamName
+     * @return
+     */
+    protected InternalStreamDescription getStreamDescription(String streamName)
+    {
+        InternalStreamDescription desc = this.streamMap.get(streamName);
+        if (desc == null) {
+            desc = new InternalStreamDescription(streamName);
+
+            DescribeStreamRequest describeStreamRequest = clientManager.getDescribeStreamRequest();
+            describeStreamRequest.setStreamName(streamName);
+
+            // Collect shards from Kinesis
+            String exclusiveStartShardId = null;
+            List<Shard> shards = new ArrayList<>();
+            do {
+                describeStreamRequest.setExclusiveStartShardId(exclusiveStartShardId);
+                DescribeStreamResult describeStreamResult = clientManager.getClient().describeStream(describeStreamRequest);
+
+                String streamStatus = describeStreamResult.getStreamDescription().getStreamStatus();
+                if (!streamStatus.equals("ACTIVE") && !streamStatus.equals("UPDATING")) {
+                    throw new ResourceNotFoundException("Stream not Active");
+                }
+
+                desc.addAllShards(describeStreamResult.getStreamDescription().getShards());
+
+                if (describeStreamResult.getStreamDescription().getHasMoreShards() && (shards.size() > 0)) {
+                    exclusiveStartShardId = shards.get(shards.size() - 1).getShardId();
+                }
+                else {
+                    exclusiveStartShardId = null;
+                }
+            } while (exclusiveStartShardId != null);
+
+            this.streamMap.put(streamName, desc);
+        }
+
+        return desc;
     }
 }

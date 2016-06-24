@@ -166,8 +166,10 @@ public class KinesisRecordSet
     public class KinesisRecordCursor
             implements RecordCursor
     {
-        private long totalBytes;
-        private long totalMessages;
+        private long batchesRead = 0;
+        private long totalBytes = 0;
+        private long totalMessages = 0;
+        private long lastReadTime = 0;
 
         private  String shardIterator;
         private KinesisFieldValueProvider[] fieldValueProviders;
@@ -204,64 +206,61 @@ public class KinesisRecordSet
         @Override
         public boolean advanceNextPosition()
         {
-            if (shardIterator == null) {
-                getIterator();
-                if (getKinesisRecords() == false) {
-                    log.debug("No more records in shard to read.");
-                    return false;
-                }
+            if (shardIterator == null && getRecordsRequest == null) {
+                getIterator(); // first shard iterator
+                log.debug("Retrieved first shard iterator from AWS Kinesis.");
             }
 
-            while (true) {
-                log.debug("Reading data from shardIterator %s", shardIterator);
-                while (listIterator.hasNext()) {
-                    return nextRow();
-                }
+            if (getRecordsRequest == null || (!listIterator.hasNext() && shouldGetMoreRecords())) {
+                getKinesisRecords();
+            }
 
-                shardIterator = getRecordsResult.getNextShardIterator();
-
-                if (shardIterator == null) {
-                    log.debug("Shard closed");
-                    return false;
-                }
-                else {
-                    if (getKinesisRecords() == false) {
-                        log.debug("No more records in shard to read.");
-                        return false;
-                    }
-                }
+            if (listIterator.hasNext()) {
+                return nextRow();
+            }
+            else {
+                log.info("Read all of the records from the shard:  %d batches and %d messages.", batchesRead, totalMessages);
+                return false;
             }
         }
 
-        private boolean getKinesisRecords()
+        /** Another place to control the logic of whether or not to continue. */
+        private boolean shouldGetMoreRecords()
+        {
+            return shardIterator != null && batchesRead < fetchAttempts;
+        }
+
+        /** Retrieves the next batch of records from Kinesis using the shard iterator. */
+        private void getKinesisRecords()
                 throws ResourceNotFoundException
         {
+            long now = System.currentTimeMillis();
+            if (now - lastReadTime <= sleepTime) {
+                try {
+                    Thread.sleep(now - lastReadTime);
+                }
+                catch (InterruptedException e) {
+                    log.error("Sleep interrupted.", e);
+                }
+            }
             getRecordsRequest = new GetRecordsRequest();
             getRecordsRequest.setShardIterator(shardIterator);
             getRecordsRequest.setLimit(batchSize);
 
+            log.debug("Performing getRecords from Kinesis.");
             getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
-            int iterationsLeft = fetchAttempts;
-            do {
-                kinesisRecords = getRecordsResult.getRecords();
-                if (!kinesisRecords.isEmpty()) {
-                    break;
-                }
-                try {
-                    Thread.sleep(sleepTime);
-                }
-                catch (InterruptedException e) {
-                    // it's fine to fall out early
-                }
-                iterationsLeft--;
-            } while (iterationsLeft > 0);
-            if (kinesisRecords.isEmpty()) {
-                return false;
-            }
+            lastReadTime = System.currentTimeMillis();
+
+            kinesisRecords = getRecordsResult.getRecords();
+            log.debug("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
             listIterator = kinesisRecords.iterator();
-            return true;
+            batchesRead++;
+
+            // TODO: use millisBehindLatest to see if there are really more records
+            shardIterator = getRecordsResult.getNextShardIterator();
         }
 
+        /** Working from the internal list, advance to the next row and decode it. */
         private boolean nextRow()
         {
             Record currentRecord = listIterator.next();
@@ -314,7 +313,7 @@ public class KinesisRecordSet
             checkArgument(field < columnHandles.size(), "Invalid field index");
 
             checkFieldType(field, boolean.class);
-            return isNull(field) ? false : fieldValueProviders[field].getBoolean();
+            return !isNull(field) && fieldValueProviders[field].getBoolean();
         }
 
         @Override
