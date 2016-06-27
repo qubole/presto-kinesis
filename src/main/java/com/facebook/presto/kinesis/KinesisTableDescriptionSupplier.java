@@ -28,7 +28,6 @@ import java.util.Map;
 
 import org.weakref.jmx.internal.guava.base.Objects;
 
-import com.facebook.presto.kinesis.decoder.dummy.DummyKinesisRowDecoder;
 import com.facebook.presto.spi.SchemaTableName;
 import java.util.function.Supplier;
 import com.google.common.base.Throwables;
@@ -36,7 +35,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 /**
  *
@@ -56,8 +55,8 @@ public class KinesisTableDescriptionSupplier
     KinesisTableDescriptionSupplier(KinesisConnectorConfig kinesisConnectorConfig,
             JsonCodec<KinesisStreamDescription> streamDescriptionCodec)
     {
-        this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "kinesisConnectorConfig is null");
-        this.streamDescriptionCodec = checkNotNull(streamDescriptionCodec, "streamDescriptionCodec is null");
+        this.kinesisConnectorConfig = requireNonNull(kinesisConnectorConfig, "kinesisConnectorConfig is null");
+        this.streamDescriptionCodec = requireNonNull(streamDescriptionCodec, "streamDescriptionCodec is null");
     }
 
     @Override
@@ -75,35 +74,9 @@ public class KinesisTableDescriptionSupplier
             }
 
             Map<SchemaTableName, KinesisStreamDescription> tableDefinitions = builder.build();
-
             log.debug("Loaded table definitions: %s", tableDefinitions.keySet());
 
-            builder = ImmutableMap.builder();
-            for (String definedTable : kinesisConnectorConfig.getTableNames()) {
-                SchemaTableName tableName;
-                try {
-                    tableName = SchemaTableName.valueOf(definedTable);
-                }
-                catch (IllegalArgumentException iae) {
-                    tableName = new SchemaTableName(kinesisConnectorConfig.getDefaultSchema(), definedTable);
-                }
-
-                if (tableDefinitions.containsKey(tableName)) {
-                    KinesisStreamDescription kinesisTable = tableDefinitions.get(tableName);
-                    log.debug("Found Table definition fo %s %s", tableName, kinesisTable);
-                    builder.put(tableName, kinesisTable);
-                }
-                else {
-                    // A dummy table definition only supports the internal columns
-                    log.debug("Created dummy Table definition for %s", tableName);
-                    builder.put(tableName, new KinesisStreamDescription(tableName.getTableName(),
-                            tableName.getSchemaName(),
-                            definedTable,
-                            new KinesisStreamFieldGroup(DummyKinesisRowDecoder.NAME, ImmutableList.<KinesisStreamFieldDescription>of())));
-                }
-            }
-
-            return builder.build();
+            return tableDefinitions;
         }
         catch (IOException e) {
             log.warn(e, "Error: ");

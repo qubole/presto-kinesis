@@ -459,12 +459,14 @@ public class MockKinesisClient extends AmazonKinesisClient
                 ArrayList<Record> recs = shard.getRecords();
                 result.setRecords(recs); // NOTE: getting all for now
                 result.setNextShardIterator(getNextShardIterator(iter, recs).makeString());
+                result.setMillisBehindLatest(100L);
             }
             else {
                 result = new GetRecordsResult();
                 ArrayList<Record> recs = shard.getRecordsFrom(iter);
                 result.setRecords(recs); // may be empty
                 result.setNextShardIterator(getNextShardIterator(iter, recs).makeString());
+                result.setMillisBehindLatest(100L);
             }
         }
         else {

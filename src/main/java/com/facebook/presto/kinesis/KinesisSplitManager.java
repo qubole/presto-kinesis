@@ -46,6 +46,9 @@ import com.google.inject.Inject;
 public class KinesisSplitManager
         implements ConnectorSplitManager
 {
+    /** Max age of the shard cache (currently 24 hours). */
+    public static final long MAX_CACHE_AGE_MILLIS = 24 * 3600 * 1000;
+
     private final String connectorId;
     private final KinesisHandleResolver handleResolver;
     private final KinesisClientProvider clientManager;
@@ -129,13 +132,15 @@ public class KinesisSplitManager
     /**
      * Internal method to retrieve the stream description and get the shards from AWS.
      *
+     * Gets from the internal cache unless not yet created or too old.
+     *
      * @param streamName
      * @return
      */
     protected InternalStreamDescription getStreamDescription(String streamName)
     {
         InternalStreamDescription desc = this.streamMap.get(streamName);
-        if (desc == null) {
+        if (desc == null || System.currentTimeMillis() - desc.getCreateTimeStamp() >= MAX_CACHE_AGE_MILLIS) {
             desc = new InternalStreamDescription(streamName);
 
             DescribeStreamRequest describeStreamRequest = clientManager.getDescribeStreamRequest();

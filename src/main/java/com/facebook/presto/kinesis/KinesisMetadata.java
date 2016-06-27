@@ -74,6 +74,12 @@ public class KinesisMetadata
         this.internalFieldDescriptions = checkNotNull(internalFieldDescriptions, "internalFieldDescriptions is null");
     }
 
+    /** Expose configuration to related internal classes that may need it. */
+    public KinesisConnectorConfig getConnectorConfig()
+    {
+        return this.kinesisConnectorConfig;
+    }
+
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {

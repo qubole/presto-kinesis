@@ -47,6 +47,9 @@ import com.google.common.collect.ImmutableSet;
 public class KinesisRecordSet
         implements RecordSet
 {
+    /** Indicates how close to current we want to be before stopping the fetch of records in a query. */
+    public static final int MILLIS_BEHIND_LIMIT = 10000;
+
     private static final Logger log = Logger.get(KinesisRecordSet.class);
 
     private static final byte [] EMPTY_BYTE_ARRAY = new byte [0];
@@ -63,6 +66,7 @@ public class KinesisRecordSet
     private final List<Type> columnTypes;
 
     private final int batchSize;
+    private final int maxBatches;
     private final int fetchAttempts;
     private final long sleepTime;
 
@@ -104,7 +108,10 @@ public class KinesisRecordSet
 
         this.columnTypes = typeBuilder.build();
 
-        this.batchSize = kinesisConnectorConfig.getBatchSize();
+        // Note: these default to what is in the configuration if not given in the session
+        this.batchSize = SessionVariables.getBatchSize(this.session);
+        this.maxBatches = SessionVariables.getMaxBatches(this.session);
+
         this.fetchAttempts = kinesisConnectorConfig.getFetchAttempts();
         this.sleepTime = kinesisConnectorConfig.getSleepTime().toMillis();
 
@@ -126,8 +133,8 @@ public class KinesisRecordSet
                 String dynamoDBTable = split.getStreamName();
                 int curIterationNumber = kinesisConnectorConfig.getIterationNumber();
 
-                String sessionIterationNo = KinesisTableHandle.getSessionProperty(this.session, "iteration_number");
-                String sessionLogicalName = KinesisTableHandle.getSessionProperty(this.session, "checkpoint_logical_name");
+                String sessionIterationNo = SessionVariables.getSessionProperty(this.session, SessionVariables.ITERATION_NUMBER);
+                String sessionLogicalName = SessionVariables.getSessionProperty(this.session, SessionVariables.CHECKPOINT_LOGICAL_NAME);
 
                 if (sessionIterationNo != null) {
                     curIterationNumber = Integer.parseInt(sessionIterationNo);
@@ -203,6 +210,15 @@ public class KinesisRecordSet
             return columnHandles.get(field).getType();
         }
 
+        /**
+         * Advances the cursor by one position, retrieving more records from Kinesis if needed.
+         *
+         * We retrieve records from Kinesis in batches, using the getRecordsRequest.  After a
+         * getRecordsRequest we keep iterating through that list of records until we run out.  Then
+         * we will get another batch unless we've hit the limit or have caught up.
+         *
+         * @return
+         */
         @Override
         public boolean advanceNextPosition()
         {
@@ -224,40 +240,57 @@ public class KinesisRecordSet
             }
         }
 
-        /** Another place to control the logic of whether or not to continue. */
+        /** Determine whether or not to retrieve another batch of records from Kinesis. */
         private boolean shouldGetMoreRecords()
         {
-            return shardIterator != null && batchesRead < fetchAttempts;
+            return shardIterator != null && batchesRead < maxBatches &&
+                    getMillisBehindLatest() > MILLIS_BEHIND_LIMIT;
         }
 
-        /** Retrieves the next batch of records from Kinesis using the shard iterator. */
+        /**
+         * Retrieves the next batch of records from Kinesis using the shard iterator.
+         *
+         * Most of the time this results in one getRecords call.  However we allow for
+         * a call to return an empty list, and we'll try again if we are far enough
+         * away from the latest record.
+         */
         private void getKinesisRecords()
                 throws ResourceNotFoundException
         {
-            long now = System.currentTimeMillis();
-            if (now - lastReadTime <= sleepTime) {
-                try {
-                    Thread.sleep(now - lastReadTime);
+            // Normally this loop will execute once, but we have to allow for the odd Kinesis
+            // behavior, per the docs:
+            // A single call to getRecords might return an empty record list, even when the shard contains
+            // more records at later sequence numbers
+            boolean fetchedRecords = false;
+            int attempts = 0;
+            while (!fetchedRecords && attempts < fetchAttempts) {
+                long now = System.currentTimeMillis();
+                if (now - lastReadTime <= sleepTime) {
+                    try {
+                        Thread.sleep(now - lastReadTime);
+                    }
+                    catch (InterruptedException e) {
+                        log.error("Sleep interrupted.", e);
+                    }
                 }
-                catch (InterruptedException e) {
-                    log.error("Sleep interrupted.", e);
-                }
+                getRecordsRequest = new GetRecordsRequest();
+                getRecordsRequest.setShardIterator(shardIterator);
+                getRecordsRequest.setLimit(batchSize);
+
+                log.debug("Performing getRecords from Kinesis.");
+                getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
+                lastReadTime = System.currentTimeMillis();
+
+                shardIterator = getRecordsResult.getNextShardIterator();
+                kinesisRecords = getRecordsResult.getRecords();
+                log.debug("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
+
+                fetchedRecords = (kinesisRecords.size() > 0 || getMillisBehindLatest() <= MILLIS_BEHIND_LIMIT);
+                attempts++;
             }
-            getRecordsRequest = new GetRecordsRequest();
-            getRecordsRequest.setShardIterator(shardIterator);
-            getRecordsRequest.setLimit(batchSize);
 
-            log.debug("Performing getRecords from Kinesis.");
-            getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
-            lastReadTime = System.currentTimeMillis();
-
-            kinesisRecords = getRecordsResult.getRecords();
-            log.debug("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
             listIterator = kinesisRecords.iterator();
             batchesRead++;
-
-            // TODO: use millisBehindLatest to see if there are really more records
-            shardIterator = getRecordsResult.getNextShardIterator();
         }
 
         /** Working from the internal list, advance to the next row and decode it. */
@@ -305,6 +338,17 @@ public class KinesisRecordSet
             }
 
             return true;
+        }
+
+        /** Protect against possibly null values if this isn't set (not expected) */
+        private long getMillisBehindLatest()
+        {
+            if (getRecordsResult != null && getRecordsResult.getMillisBehindLatest() != null) {
+                return getRecordsResult.getMillisBehindLatest();
+            }
+            else {
+                return MILLIS_BEHIND_LIMIT + 1;
+            }
         }
 
         @Override

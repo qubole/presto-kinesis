@@ -67,7 +67,6 @@ public class TestKinesisPlugin
         assertNotNull(factory.getHandleResolver());
 
         Connector c = factory.create("kinesis.test-connector", ImmutableMap.<String, String>builder()
-                .put("kinesis.table-names", "test")
                 .put("kinesis.hide-internal-columns", "false")
                 .put("kinesis.access-key", awsAccessKey)
                 .put("kinesis.secret-key", awsSecretKey)

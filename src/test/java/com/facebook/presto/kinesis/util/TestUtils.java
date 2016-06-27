@@ -28,7 +28,6 @@ import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.testing.QueryRunner;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 
 public class TestUtils
@@ -60,7 +59,6 @@ public class TestUtils
         queryRunner.installPlugin(kinesisPlugin);
 
         Map<String, String> kinesisConfig = ImmutableMap.of(
-                    "kinesis.table-names", Joiner.on(",").join(streamDescriptions.keySet()),
                     "kinesis.default-schema", "default",
                     "kinesis.access-key", accessKey,
                     "kinesis.secret-key", secretKey);

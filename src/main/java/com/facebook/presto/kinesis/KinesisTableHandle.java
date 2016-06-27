@@ -16,7 +16,6 @@ package com.facebook.presto.kinesis;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -138,16 +137,5 @@ public class KinesisTableHandle
                 .add("streamName", streamName)
                 .add("messageDataFormat", messageDataFormat)
                 .toString();
-    }
-
-    public static String getSessionProperty(ConnectorSession session, String key)
-    {
-        String value = session.getProperty(key, String.class);
-        if (value == null) {
-            return "0";
-        }
-        else {
-            return value;
-        }
     }
 }

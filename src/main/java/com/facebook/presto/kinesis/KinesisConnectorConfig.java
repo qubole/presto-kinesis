@@ -16,13 +16,9 @@ package com.facebook.presto.kinesis;
 import io.airlift.configuration.Config;
 import io.airlift.units.Duration;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.validation.constraints.NotNull;
-
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
 
 /**
  * This Class handles all the configuration settings that is stored in /etc/catalog/kinesis.properties file
@@ -30,11 +26,6 @@ import com.google.common.collect.ImmutableSet;
  */
 public class KinesisConnectorConfig
 {
-    /**
-     * Set of tables known to this connector. For each table, a description file may be present in the catalog folder which describes columns for the given topic.
-     */
-    private Set<String> tableNames = ImmutableSet.of();
-
     /**
      * The schema name to use in the connector.
      */
@@ -61,9 +52,14 @@ public class KinesisConnectorConfig
     private int batchSize = 10000;
 
     /**
-     * Defines number of attempts to fetch records from stream until received non-empty
+     * Defines the maximum number of batches read from Kinesis in one query.
      */
-    private int fetchAttmepts = 3;
+    private int maxBatches = 600;
+
+    /**
+     * Defines number of attempts to fetch records from a stream until received non-empty on the first batch.
+     */
+    private int fetchAttempts = 2;
 
     /**
      *  Defines sleep time (in milliseconds) for the thread which is trying to fetch the records from kinesis streams
@@ -108,19 +104,6 @@ public class KinesisConnectorConfig
     public KinesisConnectorConfig setHideInternalColumns(boolean hideInternalColumns)
     {
         this.hideInternalColumns = hideInternalColumns;
-        return this;
-    }
-
-    @NotNull
-    public Set<String> getTableNames()
-    {
-        return tableNames;
-    }
-
-    @Config("kinesis.table-names")
-    public KinesisConnectorConfig setTableNames(String tableNames)
-    {
-        this.tableNames = ImmutableSet.copyOf(Splitter.on(',').omitEmptyStrings().trimResults().split(tableNames));
         return this;
     }
 
@@ -221,16 +204,28 @@ public class KinesisConnectorConfig
         return this.batchSize;
     }
 
+    @Config("kinesis.max-batches")
+    public KinesisConnectorConfig setMaxBatches(int maxBatches)
+    {
+        this.maxBatches = maxBatches;
+        return this;
+    }
+
+    public int getMaxBatches()
+    {
+        return this.maxBatches;
+    }
+
     @Config("kinesis.fetch-attempts")
     public KinesisConnectorConfig setFetchAttempts(int fetchAttempts)
     {
-        this.fetchAttmepts = fetchAttempts;
+        this.fetchAttempts = fetchAttempts;
         return this;
     }
 
     public int getFetchAttempts()
     {
-        return this.fetchAttmepts;
+        return this.fetchAttempts;
     }
 
     @Config("kinesis.sleep-time")

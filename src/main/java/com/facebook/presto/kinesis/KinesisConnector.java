@@ -21,11 +21,15 @@ import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 
+import com.facebook.presto.spi.session.PropertyMetadata;
 import com.facebook.presto.spi.transaction.IsolationLevel;
 import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static com.facebook.presto.spi.transaction.IsolationLevel.checkConnectorSupports;
 
 import com.google.inject.Inject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Kinesis connector implementation that includes a record set provider.
@@ -39,6 +43,7 @@ public class KinesisConnector
     private final KinesisMetadata metadata;
     private final KinesisSplitManager splitManager;
     private final KinesisRecordSetProvider recordSetProvider;
+    private final ArrayList<PropertyMetadata<?>> propertyList;
 
     @Inject
     public KinesisConnector(
@@ -49,6 +54,9 @@ public class KinesisConnector
         this.metadata = checkNotNull(metadata, "metadata is null");
         this.splitManager = checkNotNull(splitManager, "splitManager is null");
         this.recordSetProvider = checkNotNull(recordSetProvider, "recordSetProvider is null");
+
+        this.propertyList = new ArrayList<PropertyMetadata<?>>();
+        buildPropertyList();
     }
 
     @Override
@@ -74,5 +82,30 @@ public class KinesisConnector
     public ConnectorRecordSetProvider getRecordSetProvider()
     {
         return recordSetProvider;
+    }
+
+    /**
+     * Return the session properties.
+     *
+     * @return the system properties for this connector
+     */
+    @Override
+    public List<PropertyMetadata<?>> getSessionProperties()
+    {
+        return this.propertyList;
+    }
+
+    /** Build the list of session properties we support to supply them to Presto. */
+    protected void buildPropertyList()
+    {
+        KinesisConnectorConfig cfg = this.metadata.getConnectorConfig();
+        this.propertyList.add(PropertyMetadata.integerSessionProperty(
+                SessionVariables.ITERATION_NUMBER, "checkpoint iteration number", cfg.getIterationNumber(), false));
+        this.propertyList.add(PropertyMetadata.stringSessionProperty(
+                SessionVariables.CHECKPOINT_LOGICAL_NAME, "checkpoint logical name", cfg.getLogicalProcessName(), false));
+        this.propertyList.add(PropertyMetadata.integerSessionProperty(
+                SessionVariables.MAX_BATCHES, "max number of calls to Kinesis per query", cfg.getMaxBatches(), false));
+        this.propertyList.add(PropertyMetadata.integerSessionProperty(
+                SessionVariables.BATCH_SIZE, "Record limit in calls to Kinesis", cfg.getBatchSize(), false));
     }
 }
