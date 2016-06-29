@@ -32,9 +32,16 @@ public class KinesisConnectorConfig
     private String defaultSchema = "default";
 
     /**
-     * Folder holding the JSON description files for Kafka topics.
+     * Folder holding the JSON description files for Kinesis streams.
      */
     private String tableDescriptionDir = "etc/kinesis/";
+
+    /**
+     * An S3 URL with JSON description files for Kinesis streams.
+     *
+     * This is empty by default and will override tableDescriptionDir when set.
+     */
+    private String tableDescriptionsS3 = "";
 
     /**
      * Whether internal columns are shown in table metadata or not. Default is no.
@@ -82,6 +89,8 @@ public class KinesisConnectorConfig
 
     private int iterationNumber = 0;
 
+    private boolean logKinesisBatches = true;
+
     @NotNull
     public String getTableDescriptionDir()
     {
@@ -92,6 +101,19 @@ public class KinesisConnectorConfig
     public KinesisConnectorConfig setTableDescriptionDir(String tableDescriptionDir)
     {
         this.tableDescriptionDir = tableDescriptionDir;
+        return this;
+    }
+
+    @NotNull
+    public String getTableDescriptionsS3()
+    {
+        return tableDescriptionsS3;
+    }
+
+    @Config("kinesis.table-descriptions-s3")
+    public KinesisConnectorConfig setTableDescriptionsS3(String tableDescriptionsS3)
+    {
+        this.tableDescriptionsS3 = tableDescriptionsS3;
         return this;
     }
 
@@ -274,5 +296,17 @@ public class KinesisConnectorConfig
     public int getIterationNumber()
     {
         return iterationNumber;
+    }
+
+    @Config("kinesis.log-batches")
+    public KinesisConnectorConfig setLogBatches(boolean logBatches)
+    {
+        this.logKinesisBatches = logBatches;
+        return this;
+    }
+
+    public boolean isLogBatches()
+    {
+        return logKinesisBatches;
     }
 }

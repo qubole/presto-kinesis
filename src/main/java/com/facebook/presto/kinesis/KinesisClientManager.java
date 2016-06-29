@@ -17,6 +17,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.google.inject.Inject;
 
 import io.airlift.log.Logger;
@@ -32,6 +33,7 @@ public class KinesisClientManager implements KinesisClientProvider
     private static final Logger log = Logger.get(KinesisClientManager.class);
     private final AmazonKinesisClient client;
     private final KinesisAwsCredentials kinesisAwsCredentials;
+    private final AmazonS3Client amazonS3Client;
     private final AmazonDynamoDBClient dynamoDBClient;              // for Checkpointing
 
     @Inject
@@ -41,12 +43,15 @@ public class KinesisClientManager implements KinesisClientProvider
         if (nonEmpty(kinesisConnectorConfig.getAccessKey()) && nonEmpty(kinesisConnectorConfig.getSecretKey())) {
             this.kinesisAwsCredentials = new KinesisAwsCredentials(kinesisConnectorConfig.getAccessKey(), kinesisConnectorConfig.getSecretKey());
             this.client = new AmazonKinesisClient(this.kinesisAwsCredentials);
+            this.amazonS3Client = new AmazonS3Client(this.kinesisAwsCredentials);
             this.dynamoDBClient = new AmazonDynamoDBClient(this.kinesisAwsCredentials);
         }
         else {
             this.kinesisAwsCredentials = null;
-            this.client = new AmazonKinesisClient(new DefaultAWSCredentialsProviderChain());
-            this.dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain());
+            DefaultAWSCredentialsProviderChain defaultChain = new DefaultAWSCredentialsProviderChain();
+            this.client = new AmazonKinesisClient(defaultChain);
+            this.amazonS3Client = new AmazonS3Client(defaultChain);
+            this.dynamoDBClient = new AmazonDynamoDBClient(defaultChain);
         }
 
         this.client.setEndpoint("kinesis." + kinesisConnectorConfig.getAwsRegion() + ".amazonaws.com");
@@ -63,6 +68,12 @@ public class KinesisClientManager implements KinesisClientProvider
     public AmazonDynamoDBClient getDynamoDBClient()
     {
         return dynamoDBClient;
+    }
+
+    @Override
+    public AmazonS3Client getS3Client()
+    {
+        return amazonS3Client;
     }
 
     @Override

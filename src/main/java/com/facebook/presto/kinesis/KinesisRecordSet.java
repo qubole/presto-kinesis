@@ -224,7 +224,7 @@ public class KinesisRecordSet
         {
             if (shardIterator == null && getRecordsRequest == null) {
                 getIterator(); // first shard iterator
-                log.debug("Retrieved first shard iterator from AWS Kinesis.");
+                log.info("Starting read.  Retrieved first shard iterator from AWS Kinesis.");
             }
 
             if (getRecordsRequest == null || (!listIterator.hasNext() && shouldGetMoreRecords())) {
@@ -235,7 +235,7 @@ public class KinesisRecordSet
                 return nextRow();
             }
             else {
-                log.info("Read all of the records from the shard:  %d batches and %d messages.", batchesRead, totalMessages);
+                log.info("Read all of the records from the shard:  %d batches and %d messages and %d total bytes.", batchesRead, totalMessages, totalBytes);
                 return false;
             }
         }
@@ -277,13 +277,14 @@ public class KinesisRecordSet
                 getRecordsRequest.setShardIterator(shardIterator);
                 getRecordsRequest.setLimit(batchSize);
 
-                log.debug("Performing getRecords from Kinesis.");
                 getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
                 lastReadTime = System.currentTimeMillis();
 
                 shardIterator = getRecordsResult.getNextShardIterator();
                 kinesisRecords = getRecordsResult.getRecords();
-                log.debug("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
+                if (kinesisConnectorConfig.isLogBatches()) {
+                    log.info("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
+                }
 
                 fetchedRecords = (kinesisRecords.size() > 0 || getMillisBehindLatest() <= MILLIS_BEHIND_LIMIT);
                 attempts++;
@@ -405,7 +406,7 @@ public class KinesisRecordSet
         @Override
         public void close()
         {
-            log.info("Read complete");
+            log.info("Close called on cursor - read complete.  Total: %d batches %d messages %d total bytes.", batchesRead, totalMessages, totalBytes);
             if (checkpointEnabled && lastReadSeqNo != null) {
                 kinesisShardCheckpointer.checkpoint(lastReadSeqNo);
             }

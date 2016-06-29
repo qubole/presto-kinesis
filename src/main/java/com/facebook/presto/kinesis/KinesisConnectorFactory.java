@@ -17,6 +17,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import com.facebook.presto.spi.NodeManager;
+import com.google.inject.Key;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
@@ -117,11 +118,35 @@ public class KinesisConnectorFactory
                         .setOptionalConfigurationProperties(optionalConfig)
                         .initialize();
 
+            KinesisConnector connector = injector.getInstance(KinesisConnector.class);
+
+            // Register objects for shutdown, at the moment only KinesisTableDescriptionSupplier
+            if (!tableDescriptionSupplier.isPresent()) {
+                // This will shutdown related dependent objects as well:
+                KinesisTableDescriptionSupplier supp = getTableDescSupplier(injector);
+                connector.registerShutdownObject(supp);
+            }
+
             log.info("Done with injector.  Returning the connector itself.");
-            return injector.getInstance(KinesisConnector.class);
+            return connector;
         }
         catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    /**
+     * Convenience method to get the table description supplier.
+     *
+     * @param inj
+     * @return
+     */
+    protected KinesisTableDescriptionSupplier getTableDescSupplier(Injector inj)
+    {
+        requireNonNull(inj, "Injector is missing in getTableDescSupplier");
+        Supplier<Map<SchemaTableName, KinesisStreamDescription>> supplier =
+                inj.getInstance(Key.get(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}));
+        requireNonNull(inj, "Injector cannot find any table description supplier");
+        return (KinesisTableDescriptionSupplier) supplier;
     }
 }

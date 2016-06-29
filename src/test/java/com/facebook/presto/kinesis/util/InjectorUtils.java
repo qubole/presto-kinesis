@@ -16,7 +16,9 @@ package com.facebook.presto.kinesis.util;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.facebook.presto.kinesis.KinesisClientProvider;
+import com.facebook.presto.kinesis.KinesisConnector;
 import com.facebook.presto.kinesis.KinesisConnectorModule;
 import com.facebook.presto.kinesis.KinesisHandleResolver;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
@@ -62,11 +64,13 @@ public class InjectorUtils
     {
         private final AmazonKinesisClient client;
         private final AmazonDynamoDBClient dynamoDBClient;
+        private final AmazonS3Client amazonS3Client;
 
         public KinesisTestClientManager()
         {
             this.client = new MockKinesisClient();
             this.dynamoDBClient = new AmazonDynamoDBClient();
+            this.amazonS3Client = new AmazonS3Client();
         }
 
         @Override
@@ -79,6 +83,12 @@ public class InjectorUtils
         public AmazonDynamoDBClient getDynamoDBClient()
         {
             return this.dynamoDBClient;
+        }
+
+        @Override
+        public AmazonS3Client getS3Client()
+        {
+            return amazonS3Client;
         }
 
         @Override
@@ -151,6 +161,14 @@ public class InjectorUtils
                     .doNotInitializeLogging()
                     .setRequiredConfigurationProperties(config)
                     .initialize();
+
+            // Register objects for shutdown
+            KinesisConnector connector = injector.getInstance(KinesisConnector.class);
+            if (!streamDescriptionsOpt.isPresent()) {
+                // This will shutdown related dependent objects as well:
+                KinesisTableDescriptionSupplier supp = getTableDescSupplier(injector);
+                connector.registerShutdownObject(supp);
+            }
 
             return injector;
         }

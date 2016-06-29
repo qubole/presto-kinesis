@@ -23,6 +23,7 @@ import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import javax.inject.Inject;
 
 import com.facebook.presto.kinesis.decoder.KinesisDecoderModule;
+import com.facebook.presto.kinesis.s3config.S3TableConfigClient;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -56,6 +57,7 @@ public class KinesisConnectorModule
         binder.bind(KinesisMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KinesisSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(KinesisRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(S3TableConfigClient.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(KinesisConnectorConfig.class);
 

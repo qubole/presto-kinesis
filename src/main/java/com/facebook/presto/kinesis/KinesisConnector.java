@@ -27,6 +27,7 @@ import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static com.facebook.presto.spi.transaction.IsolationLevel.checkConnectorSupports;
 
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,10 +41,15 @@ import java.util.List;
 public class KinesisConnector
             implements Connector
 {
+    private static final Logger log = Logger.get(KinesisConnector.class);
+
     private final KinesisMetadata metadata;
     private final KinesisSplitManager splitManager;
     private final KinesisRecordSetProvider recordSetProvider;
+
     private final ArrayList<PropertyMetadata<?>> propertyList;
+
+    private ArrayList<ConnectorShutdown> shutdownObjects;
 
     @Inject
     public KinesisConnector(
@@ -57,6 +63,8 @@ public class KinesisConnector
 
         this.propertyList = new ArrayList<PropertyMetadata<?>>();
         buildPropertyList();
+
+        this.shutdownObjects = new ArrayList<ConnectorShutdown>();
     }
 
     @Override
@@ -107,5 +115,25 @@ public class KinesisConnector
                 SessionVariables.MAX_BATCHES, "max number of calls to Kinesis per query", cfg.getMaxBatches(), false));
         this.propertyList.add(PropertyMetadata.integerSessionProperty(
                 SessionVariables.BATCH_SIZE, "Record limit in calls to Kinesis", cfg.getBatchSize(), false));
+    }
+
+    public void registerShutdownObject(ConnectorShutdown obj)
+    {
+        this.shutdownObjects.add(obj);
+    }
+
+    @Override
+    public final void shutdown()
+    {
+        for (ConnectorShutdown obj : this.shutdownObjects) {
+            try {
+                obj.shutdown();
+            }
+            catch (Exception ex) {
+                log.error("Error when shutting down class in Kinesis connector.", ex);
+            }
+        }
+
+        return;
     }
 }

@@ -251,6 +251,21 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${dep.aws-sdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>joda-time</groupId>
+                    <artifactId>joda-time</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <!-- for testing -->
         <dependency>
@@ -317,6 +332,7 @@
                     <!-- This test will connect to AWS and you may incur AWS charges: -->
                     <excludes>
                         <exclude>**/TestMinimalFunctionality.java</exclude>
+                        <exclude>**/TestS3TableConfigClient.java</exclude>
                     </excludes>
                     <systemPropertyVariables>
                         <kinesis.awsAccessKey>dunno</kinesis.awsAccessKey>

@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.kinesis;
 
+import com.facebook.presto.kinesis.s3config.S3TableConfigClient;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 
@@ -44,23 +45,36 @@ import static java.util.Objects.requireNonNull;
  *
  */
 public class KinesisTableDescriptionSupplier
-        implements Supplier<Map<SchemaTableName, KinesisStreamDescription>>
+        implements Supplier<Map<SchemaTableName, KinesisStreamDescription>>, ConnectorShutdown
 {
     private static final Logger log = Logger.get(KinesisTableDescriptionSupplier.class);
 
-    public final KinesisConnectorConfig kinesisConnectorConfig;
-    public final JsonCodec<KinesisStreamDescription> streamDescriptionCodec;
+    private final KinesisConnectorConfig kinesisConnectorConfig;
+    private final JsonCodec<KinesisStreamDescription> streamDescriptionCodec;
+    private final S3TableConfigClient s3TableConfigClient;
 
     @Inject
     KinesisTableDescriptionSupplier(KinesisConnectorConfig kinesisConnectorConfig,
-            JsonCodec<KinesisStreamDescription> streamDescriptionCodec)
+                                    JsonCodec<KinesisStreamDescription> streamDescriptionCodec,
+                                    S3TableConfigClient anS3Client)
     {
         this.kinesisConnectorConfig = requireNonNull(kinesisConnectorConfig, "kinesisConnectorConfig is null");
         this.streamDescriptionCodec = requireNonNull(streamDescriptionCodec, "streamDescriptionCodec is null");
+        this.s3TableConfigClient = requireNonNull(anS3Client, "S3 table config client is null");
     }
 
     @Override
     public Map<SchemaTableName, KinesisStreamDescription> get()
+    {
+        if (this.s3TableConfigClient.isUsingS3()) {
+            return this.s3TableConfigClient.getTablesFromS3();
+        }
+        else {
+            return getTablesFromDirectory();
+        }
+    }
+
+    public Map<SchemaTableName, KinesisStreamDescription> getTablesFromDirectory()
     {
         ImmutableMap.Builder<SchemaTableName, KinesisStreamDescription> builder = ImmutableMap.builder();
         try {
@@ -82,6 +96,14 @@ public class KinesisTableDescriptionSupplier
             log.warn(e, "Error: ");
             throw Throwables.propagate(e);
         }
+    }
+
+    /** Shutdown any periodic update jobs. */
+    @Override
+    public void shutdown()
+    {
+        this.s3TableConfigClient.shutdown();
+        return;
     }
 
     private static List<Path> listFiles(Path dir)

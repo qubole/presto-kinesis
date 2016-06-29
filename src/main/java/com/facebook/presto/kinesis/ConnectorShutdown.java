@@ -13,23 +13,20 @@
  */
 package com.facebook.presto.kinesis;
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
-import com.amazonaws.services.s3.AmazonS3Client;
-
 /**
- * Interface to a client manager that provides the AWS clients needed.
+ * Interface representing a support class in the connector that needs to be called
+ * from the Presto shutdown hook.
  *
- * Created by derekbennett on 6/20/16.
+ * To use: implement the interface, and add the instance to the list inside the connector
+ * so it can be shut down.
  */
-public interface KinesisClientProvider
+public interface ConnectorShutdown
 {
-    AmazonKinesisClient getClient();
-
-    AmazonDynamoDBClient getDynamoDBClient();
-
-    AmazonS3Client getS3Client();
-
-    DescribeStreamRequest getDescribeStreamRequest();
+    /**
+     * Perform any required shutdown activities.
+     *
+     * Note that exceptions will be caught in the connector but it's better if
+     * most exceptions are handled internally.
+     */
+    public void shutdown();
 }
