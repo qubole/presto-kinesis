@@ -115,6 +115,10 @@ public class KinesisConnector
                 SessionVariables.MAX_BATCHES, "max number of calls to Kinesis per query", cfg.getMaxBatches(), false));
         this.propertyList.add(PropertyMetadata.integerSessionProperty(
                 SessionVariables.BATCH_SIZE, "Record limit in calls to Kinesis", cfg.getBatchSize(), false));
+        this.propertyList.add(PropertyMetadata.booleanSessionProperty(
+                SessionVariables.ITER_FROM_TIMESTAMP, "Start from timestamp not trim horizon", cfg.isIterFromTimestamp(), false));
+        this.propertyList.add(PropertyMetadata.longSessionProperty(
+                SessionVariables.ITER_OFFSET_SECONDS, "Seconds before current time to start iterator", cfg.getIterOffsetSeconds(), false));
     }
 
     public void registerShutdownObject(ConnectorShutdown obj)

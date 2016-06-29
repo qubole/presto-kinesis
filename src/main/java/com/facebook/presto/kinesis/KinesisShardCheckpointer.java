@@ -21,6 +21,7 @@ import com.amazonaws.services.kinesis.leases.exceptions.InvalidStateException;
 import com.amazonaws.services.kinesis.leases.exceptions.ProvisionedThroughputException;
 import com.amazonaws.services.kinesis.leases.impl.KinesisClientLease;
 import com.amazonaws.services.kinesis.leases.impl.KinesisClientLeaseManager;
+import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.google.common.base.Throwables;
 
 public class KinesisShardCheckpointer
@@ -117,7 +118,8 @@ public class KinesisShardCheckpointer
     {
         log.info("Trying to checkpoint at " + lastReadSequenceNo);
         try {
-            kinesisClientLease.setCheckpoint(lastReadSequenceNo);
+            ExtendedSequenceNumber esn = new ExtendedSequenceNumber(lastReadSequenceNo);
+            kinesisClientLease.setCheckpoint(esn);
             kinesisClientLeaseManager.createLeaseIfNotExists(kinesisClientLease);
             if (!kinesisClientLeaseManager.updateLease(kinesisClientLease)) {
                 log.info("Checkpointing unsucessful");
@@ -155,7 +157,8 @@ public class KinesisShardCheckpointer
                 throw Throwables.propagate(e);
             }
             if (oldLease != null) {
-                lastReadSeqNo = oldLease.getCheckpoint();
+                // ExtendedSequenceNumber type in latest API:
+                lastReadSeqNo = oldLease.getCheckpoint().toString();
             }
         }
         if (lastReadSeqNo == null) {

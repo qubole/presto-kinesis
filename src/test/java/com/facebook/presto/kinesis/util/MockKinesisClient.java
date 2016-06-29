@@ -20,9 +20,8 @@ import com.amazonaws.ResponseMetadata;
 import com.amazonaws.regions.Region;
 
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
-import com.amazonaws.services.kinesis.model.AddTagsToStreamRequest;
 import com.amazonaws.services.kinesis.model.CreateStreamRequest;
-import com.amazonaws.services.kinesis.model.DeleteStreamRequest;
+import com.amazonaws.services.kinesis.model.CreateStreamResult;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
@@ -33,7 +32,6 @@ import com.amazonaws.services.kinesis.model.ListStreamsRequest;
 import com.amazonaws.services.kinesis.model.ListStreamsResult;
 import com.amazonaws.services.kinesis.model.ListTagsForStreamRequest;
 import com.amazonaws.services.kinesis.model.ListTagsForStreamResult;
-import com.amazonaws.services.kinesis.model.MergeShardsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordRequest;
 import com.amazonaws.services.kinesis.model.PutRecordResult;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
@@ -41,14 +39,13 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.Record;
-import com.amazonaws.services.kinesis.model.RemoveTagsFromStreamRequest;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import com.amazonaws.services.kinesis.model.SplitShardRequest;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * Mock kinesis client for testing that is primarily used for reading from the
@@ -201,8 +198,10 @@ public class MockKinesisClient extends AmazonKinesisClient
         {
             // Create record and insert into the shards.  Initially just do it
             // on a round robin basis.
+            long ts = System.currentTimeMillis() - 50000;
             Record rec = new Record();
             rec = rec.withData(data).withPartitionKey(partitionKey).withSequenceNumber(String.valueOf(sequenceNo));
+            rec.setApproximateArrivalTimestamp(new Date(ts));
 
             if (nextShard == shards.size()) {
                 nextShard = 0;
@@ -349,18 +348,18 @@ public class MockKinesisClient extends AmazonKinesisClient
     }
 
     @Override
-    public void createStream(CreateStreamRequest createStreamRequest) throws AmazonServiceException, AmazonClientException
+    public CreateStreamResult createStream(CreateStreamRequest createStreamRequest) throws AmazonServiceException, AmazonClientException
     {
         // Setup method to create a new stream:
         InternalStream stream = new InternalStream(createStreamRequest.getStreamName(), createStreamRequest.getShardCount(), true);
         this.streams.add(stream);
-        return;
+        return new CreateStreamResult();
     }
 
     @Override
-    public void createStream(String s, Integer integer) throws AmazonServiceException, AmazonClientException
+    public CreateStreamResult createStream(String s, Integer integer) throws AmazonServiceException, AmazonClientException
     {
-        this.createStream((new CreateStreamRequest()).withStreamName(s).withShardCount(integer));
+        return this.createStream((new CreateStreamRequest()).withStreamName(s).withShardCount(integer));
     }
 
     @Override
@@ -494,39 +493,9 @@ public class MockKinesisClient extends AmazonKinesisClient
     //// Unsupported methods
 
     @Override
-    public void addTagsToStream(AddTagsToStreamRequest addTagsToStreamRequest) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
     public ListTagsForStreamResult listTagsForStream(ListTagsForStreamRequest listTagsForStreamRequest) throws AmazonServiceException, AmazonClientException
     {
         return null;
-    }
-
-    @Override
-    public void deleteStream(DeleteStreamRequest deleteStreamRequest) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
-    public void mergeShards(MergeShardsRequest mergeShardsRequest) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
-    public void splitShard(SplitShardRequest splitShardRequest) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
-    public void removeTagsFromStream(RemoveTagsFromStreamRequest removeTagsFromStreamRequest) throws AmazonServiceException, AmazonClientException
-    {
-        return;
     }
 
     @Override
@@ -549,18 +518,6 @@ public class MockKinesisClient extends AmazonKinesisClient
 
     @Override
     public PutRecordResult putRecord(String s, ByteBuffer byteBuffer, String s1, String s2) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
-    public void deleteStream(String s) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
-    }
-
-    @Override
-    public void mergeShards(String s, String s1, String s2) throws AmazonServiceException, AmazonClientException
     {
         throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
     }
@@ -593,12 +550,6 @@ public class MockKinesisClient extends AmazonKinesisClient
     public GetShardIteratorResult getShardIterator(String s, String s1, String s2, String s3) throws AmazonServiceException, AmazonClientException
     {
         return null;
-    }
-
-    @Override
-    public void splitShard(String s, String s1, String s2) throws AmazonServiceException, AmazonClientException
-    {
-        throw new UnsupportedOperationException("MockKinesisClient doesn't support this.");
     }
 
     @Override

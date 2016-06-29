@@ -21,6 +21,7 @@ import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 
 import java.nio.ByteBuffer;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -173,7 +174,11 @@ public class KinesisRecordSet
     public class KinesisRecordCursor
             implements RecordCursor
     {
+        // TODO: total bytes here only includes records we iterate through, not total read from Kinesis.
+        // This may not be an issue, but if total vs. completed is an important signal to Presto then
+        // the implementation below could be a problem.  Need to investigate.
         private long batchesRead = 0;
+        private long messagesRead = 0;
         private long totalBytes = 0;
         private long totalMessages = 0;
         private long lastReadTime = 0;
@@ -292,6 +297,7 @@ public class KinesisRecordSet
 
             listIterator = kinesisRecords.iterator();
             batchesRead++;
+            messagesRead += kinesisRecords.size();
         }
 
         /** Working from the internal list, advance to the next row and decode it. */
@@ -314,11 +320,13 @@ public class KinesisRecordSet
 
             Set<KinesisFieldValueProvider> fieldValueProviders = new HashSet<>();
 
+            // Note: older version of SDK used in Presto doesn't support getApproximateArrivalTimestamp so can't get message timestamp!
             fieldValueProviders.addAll(globalInternalFieldValueProviders);
             fieldValueProviders.add(KinesisInternalFieldDescription.SEGMENT_COUNT_FIELD.forLongValue(totalMessages));
             fieldValueProviders.add(KinesisInternalFieldDescription.SHARD_SEQUENCE_ID_FIELD.forByteValue(currentRecord.getSequenceNumber().getBytes()));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_FIELD.forByteValue(messageData));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_LENGTH_FIELD.forLongValue(messageData.length));
+            fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_TIMESTAMP.forLongValue(currentRecord.getApproximateArrivalTimestamp().getTime()));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_VALID_FIELD.forBooleanValue(messageDecoder.decodeRow(messageData, fieldValueProviders, columnHandles, messageFieldDecoders)));
             fieldValueProviders.add(KinesisInternalFieldDescription.PARTITION_KEY_FIELD.forByteValue(partitionKey.getBytes()));
 
@@ -406,7 +414,8 @@ public class KinesisRecordSet
         @Override
         public void close()
         {
-            log.info("Close called on cursor - read complete.  Total: %d batches %d messages %d total bytes.", batchesRead, totalMessages, totalBytes);
+            log.info("Closing cursor - read complete.  Total read: %d batches %d messages, processed: %d messages and %d bytes.",
+                    batchesRead, messagesRead, totalMessages, totalBytes);
             if (checkpointEnabled && lastReadSeqNo != null) {
                 kinesisShardCheckpointer.checkpoint(lastReadSeqNo);
             }
@@ -425,7 +434,15 @@ public class KinesisRecordSet
             getShardIteratorRequest.setStreamName(split.getStreamName());
             getShardIteratorRequest.setShardId(split.getShardId());
             if (lastReadSeqNo == null) {
-                getShardIteratorRequest.setShardIteratorType("TRIM_HORIZON");
+                // This functionality requires 1.11.x or above of AWS SDK:
+                if (SessionVariables.getIterFromTimestamp(session)) {
+                    getShardIteratorRequest.setShardIteratorType("AT_TIMESTAMP");
+                    long startTs = System.currentTimeMillis() - (SessionVariables.getIterOffsetSeconds(session) * 1000);
+                    getShardIteratorRequest.setTimestamp(new Date(startTs));
+                }
+                else {
+                    getShardIteratorRequest.setShardIteratorType("TRIM_HORIZON");
+                }
             }
             else {
                 getShardIteratorRequest.setShardIteratorType("AFTER_SEQUENCE_NUMBER");

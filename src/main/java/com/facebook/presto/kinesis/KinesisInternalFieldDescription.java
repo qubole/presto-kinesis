@@ -46,6 +46,8 @@ public class KinesisInternalFieldDescription
 
     public static final KinesisInternalFieldDescription MESSAGE_FIELD = new KinesisInternalFieldDescription("_message", VarcharType.VARCHAR, "Message text");
 
+    public static final KinesisInternalFieldDescription MESSAGE_TIMESTAMP = new KinesisInternalFieldDescription("_message_timestamp", BigintType.BIGINT, "Approximate message arrival timestamp");
+
     public static final KinesisInternalFieldDescription MESSAGE_LENGTH_FIELD = new KinesisInternalFieldDescription("_message_length", BigintType.BIGINT, "Total number of message bytes");
 
     public static final KinesisInternalFieldDescription PARTITION_KEY_FIELD = new KinesisInternalFieldDescription("_partition_key", VarcharType.VARCHAR, "Key text");
@@ -54,7 +56,8 @@ public class KinesisInternalFieldDescription
     {
         return ImmutableSet.of(SHARD_ID_FIELD, SHARD_SEQUENCE_ID_FIELD,
                 SEGMENT_START_FIELD, SEGMENT_END_FIELD, SEGMENT_COUNT_FIELD,
-                PARTITION_KEY_FIELD, MESSAGE_FIELD, MESSAGE_VALID_FIELD, MESSAGE_LENGTH_FIELD);
+                PARTITION_KEY_FIELD, MESSAGE_FIELD, MESSAGE_VALID_FIELD, MESSAGE_LENGTH_FIELD,
+                MESSAGE_TIMESTAMP);
     }
 
     private final String name;

@@ -31,6 +31,8 @@ public class SessionVariables
     public static final String CHECKPOINT_LOGICAL_NAME = "checkpoint_logical_name"; // string
     public static final String MAX_BATCHES = "max_batches"; // int
     public static final String BATCH_SIZE = "batch_size"; // int
+    public static final String ITER_FROM_TIMESTAMP = "iter_from_timestamp"; // boolean
+    public static final String ITER_OFFSET_SECONDS = "iter_offset_seconds"; // long
 
     public static int getBatchSize(ConnectorSession session)
     {
@@ -42,6 +44,29 @@ public class SessionVariables
     {
         int value = session.getProperty(MAX_BATCHES, Integer.class);
         return value;
+    }
+
+    public static boolean getIterFromTimestamp(ConnectorSession session)
+    {
+        boolean value = session.getProperty(ITER_FROM_TIMESTAMP, Boolean.class);
+        return value;
+    }
+
+    public static long getIterOffsetSeconds(ConnectorSession session)
+    {
+        long value = session.getProperty(ITER_OFFSET_SECONDS, Long.class);
+        return value;
+    }
+
+    public static int getIntSessionProperty(ConnectorSession session, String key)
+    {
+        Integer value = session.getProperty(key, Integer.class);
+        if (value == null) {
+            return 0;
+        }
+        else {
+            return value;
+        }
     }
 
     public static String getSessionProperty(ConnectorSession session, String key)

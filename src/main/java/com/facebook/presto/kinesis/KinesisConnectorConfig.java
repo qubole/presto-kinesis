@@ -73,9 +73,24 @@ public class KinesisConnectorConfig
      */
     private Duration sleepTime = new Duration(1000, TimeUnit.MILLISECONDS);
 
+    /**
+     * Use an initial shard iterator type of AT_TIMESTAMP starting iterOffsetSeconds before the current time.
+     *
+     * When false, an initial shard iterator type of TRIM_HORIZON will be used.
+     */
+    private boolean iterFromTimestamp = true;
+
+    /**
+     * When iterFromTimestamp is true, the shard iterator will start at iterOffsetSeconds before
+     * the current time.
+     */
+    private long iterOffsetSeconds = 86400;
+
     private String accessKey = null;
 
     private String secretKey = null;
+
+    private boolean logKinesisBatches = true;
 
     private boolean checkpointEnabled = false;
 
@@ -88,8 +103,6 @@ public class KinesisConnectorConfig
     private String logicalProcessName = "process1";
 
     private int iterationNumber = 0;
-
-    private boolean logKinesisBatches = true;
 
     @NotNull
     public String getTableDescriptionDir()
@@ -142,6 +155,11 @@ public class KinesisConnectorConfig
         return this;
     }
 
+    public String getAccessKey()
+    {
+        return this.accessKey;
+    }
+
     @Config("kinesis.access-key")
     public KinesisConnectorConfig setAccessKey(String accessKey)
     {
@@ -149,9 +167,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public String getAccessKey()
+    public String getSecretKey()
     {
-        return this.accessKey;
+        return this.secretKey;
     }
 
     @Config("kinesis.secret-key")
@@ -161,45 +179,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public String getSecretKey()
+    public String getAwsRegion()
     {
-        return this.secretKey;
-    }
-
-    @Config("kinesis.checkpoint-enabled")
-    public KinesisConnectorConfig setCheckpointEnabled(boolean checkpointEnabled)
-    {
-        this.checkpointEnabled = checkpointEnabled;
-        return this;
-    }
-
-    public boolean isCheckpointEnabled()
-    {
-        return checkpointEnabled;
-    }
-
-    @Config("kinesis.dynamo-read-capacity")
-    public KinesisConnectorConfig setDynamoReadCapacity(long dynamoReadCapacity)
-    {
-        this.dynamoReadCapacity = dynamoReadCapacity;
-        return this;
-    }
-
-    public long getDynamoReadCapacity()
-    {
-        return dynamoReadCapacity;
-    }
-
-    @Config("kinesis.dynamo-write-capacity")
-    public KinesisConnectorConfig setDynamoWriteCapacity(long dynamoWriteCapacity)
-    {
-        this.dyanamoWriteCapacity = dynamoWriteCapacity;
-        return this;
-    }
-
-    public long getDynamoWriteCapacity()
-    {
-        return dyanamoWriteCapacity;
+        return awsRegion;
     }
 
     @Config("kinesis.aws-region")
@@ -209,9 +191,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public String getAwsRegion()
+    public int getBatchSize()
     {
-        return awsRegion;
+        return this.batchSize;
     }
 
     @Config("kinesis.batch-size")
@@ -221,9 +203,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public int getBatchSize()
+    public int getMaxBatches()
     {
-        return this.batchSize;
+        return this.maxBatches;
     }
 
     @Config("kinesis.max-batches")
@@ -233,9 +215,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public int getMaxBatches()
+    public int getFetchAttempts()
     {
-        return this.maxBatches;
+        return this.fetchAttempts;
     }
 
     @Config("kinesis.fetch-attempts")
@@ -245,9 +227,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public int getFetchAttempts()
+    public Duration getSleepTime()
     {
-        return this.fetchAttempts;
+        return this.sleepTime;
     }
 
     @Config("kinesis.sleep-time")
@@ -257,45 +239,9 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public Duration getSleepTime()
+    public boolean isLogBatches()
     {
-        return this.sleepTime;
-    }
-
-    @Config("kinesis.checkpoint-interval-ms")
-    public KinesisConnectorConfig setCheckpointIntervalMS(Duration checkpointIntervalMS)
-    {
-        this.checkpointIntervalMS = checkpointIntervalMS;
-        return this;
-    }
-
-    public Duration getCheckpointIntervalMS()
-    {
-        return checkpointIntervalMS;
-    }
-
-    @Config("kinesis.checkpoint-logical-name")
-    public KinesisConnectorConfig setLogicalProcessName(String logicalPrcessName)
-    {
-        this.logicalProcessName = logicalPrcessName;
-        return this;
-    }
-
-    public String getLogicalProcessName()
-    {
-        return logicalProcessName;
-    }
-
-    @Config("kinesis.iteration-number")
-    public KinesisConnectorConfig setIterationNumber(int iterationNumber)
-    {
-        this.iterationNumber = iterationNumber;
-        return this;
-    }
-
-    public int getIterationNumber()
-    {
-        return iterationNumber;
+        return logKinesisBatches;
     }
 
     @Config("kinesis.log-batches")
@@ -305,8 +251,99 @@ public class KinesisConnectorConfig
         return this;
     }
 
-    public boolean isLogBatches()
+    public boolean isIterFromTimestamp()
     {
-        return logKinesisBatches;
+        return iterFromTimestamp;
     }
-}
+
+    @Config("kinesis.iter-from-timestamp")
+    public KinesisConnectorConfig setIterFromTimestamp(boolean iterFromTimestamp)
+    {
+        this.iterFromTimestamp = iterFromTimestamp;
+        return this;
+    }
+
+    public long getIterOffsetSeconds()
+    {
+        return iterOffsetSeconds;
+    }
+
+    @Config("kinesis.iter-offset-seconds")
+    public KinesisConnectorConfig setIterOffsetSeconds(long iterOffsetSeconds)
+    {
+        this.iterOffsetSeconds = iterOffsetSeconds;
+        return this;
+    }
+
+    public boolean isCheckpointEnabled()
+    {
+        return checkpointEnabled;
+    }
+
+    @Config("kinesis.checkpoint-enabled")
+    public KinesisConnectorConfig setCheckpointEnabled(boolean checkpointEnabled)
+    {
+        this.checkpointEnabled = checkpointEnabled;
+        return this;
+    }
+
+    public long getDynamoReadCapacity()
+    {
+        return dynamoReadCapacity;
+    }
+
+    @Config("kinesis.dynamo-read-capacity")
+    public KinesisConnectorConfig setDynamoReadCapacity(long dynamoReadCapacity)
+    {
+        this.dynamoReadCapacity = dynamoReadCapacity;
+        return this;
+    }
+
+    public long getDynamoWriteCapacity()
+    {
+        return dyanamoWriteCapacity;
+    }
+
+    @Config("kinesis.dynamo-write-capacity")
+    public KinesisConnectorConfig setDynamoWriteCapacity(long dynamoWriteCapacity)
+    {
+        this.dyanamoWriteCapacity = dynamoWriteCapacity;
+        return this;
+    }
+
+    public Duration getCheckpointIntervalMS()
+    {
+        return checkpointIntervalMS;
+    }
+
+    @Config("kinesis.checkpoint-interval-ms")
+    public KinesisConnectorConfig setCheckpointIntervalMS(Duration checkpointIntervalMS)
+    {
+        this.checkpointIntervalMS = checkpointIntervalMS;
+        return this;
+    }
+
+    public String getLogicalProcessName()
+    {
+        return logicalProcessName;
+    }
+
+    @Config("kinesis.checkpoint-logical-name")
+    public KinesisConnectorConfig setLogicalProcessName(String logicalPrcessName)
+    {
+        this.logicalProcessName = logicalPrcessName;
+        return this;
+    }
+
+    public int getIterationNumber()
+    {
+        return iterationNumber;
+    }
+
+    @Config("kinesis.iteration-number")
+    public KinesisConnectorConfig setIterationNumber(int iterationNumber)
+    {
+        this.iterationNumber = iterationNumber;
+        return this;
+    }
+ }
