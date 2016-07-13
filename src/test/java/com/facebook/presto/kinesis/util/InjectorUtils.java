@@ -62,13 +62,15 @@ public class InjectorUtils
      */
     public static class KinesisTestClientManager implements KinesisClientProvider
     {
-        private final AmazonKinesisClient client;
+        // TODO: this is static so we can always be sure we have the "right client".  Find a better way to do this.
+        // This is always a conundrum in these tests because the injector isn't exposed for us to get the right instances.
+        // One way to do this might be to have some IDs for the clients.
+        private static final AmazonKinesisClient client = new MockKinesisClient();
         private final AmazonDynamoDBClient dynamoDBClient;
         private final AmazonS3Client amazonS3Client;
 
         public KinesisTestClientManager()
         {
-            this.client = new MockKinesisClient();
             this.dynamoDBClient = new AmazonDynamoDBClient();
             this.amazonS3Client = new AmazonS3Client();
         }
@@ -76,7 +78,7 @@ public class InjectorUtils
         @Override
         public AmazonKinesisClient getClient()
         {
-            return this.client;
+            return client;
         }
 
         @Override
@@ -129,8 +131,7 @@ public class InjectorUtils
     public static Injector makeInjector(Map<String, String> config, Optional<Map<SchemaTableName, KinesisStreamDescription>> streamDescriptionsOpt)
     {
         try {
-            KinesisTestClientManager clientManager = new KinesisTestClientManager();
-            KinesisConnectorModule.setAltProvider(clientManager);
+            KinesisConnectorModule.setAltProviderClass(KinesisTestClientManager.class);
             KinesisConnectorModule mainModule = new KinesisConnectorModule();
 
             Bootstrap app = new Bootstrap(

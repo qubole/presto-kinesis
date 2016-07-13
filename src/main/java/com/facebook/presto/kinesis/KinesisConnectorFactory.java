@@ -66,6 +66,11 @@ public class KinesisConnectorFactory
         this.tableDescriptionSupplier = requireNonNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
         this.optionalConfig = requireNonNull(optionalConfig, "optionalConfig is null");
         this.handleResolver = new KinesisHandleResolver(connectorName);
+
+        // Explanation: AWS uses a newer version of jackson (2.6.6) than airlift (2.4.4).  In order to upgrade
+        // to the latest version of the AWS API, we need to turn this feature off.  This can be set
+        // in jvm.properties but trying to make this more foolproof.
+        System.setProperty("com.amazonaws.sdk.disableCbor", "true");
     }
 
     @Override

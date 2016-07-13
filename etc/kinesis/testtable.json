@@ -29,5 +29,10 @@
         "dataFormat": "iso8601"
       }
     ]
+  },
+  "comment" : "This test adds some extra fields to make sure they are ignored and don't cause issues.",
+  "client_metadata" : {
+    "name" : "Sample Query",
+    "query" : "select client_id, service_type, signup_date, _shard_id, _message_length from prod.test_table"
   }
 }

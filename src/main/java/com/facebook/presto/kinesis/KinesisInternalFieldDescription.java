@@ -27,6 +27,7 @@ import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
+import com.facebook.presto.spi.type.TimestampType;
 import java.util.Objects;
 import com.google.common.collect.ImmutableSet;
 
@@ -46,7 +47,7 @@ public class KinesisInternalFieldDescription
 
     public static final KinesisInternalFieldDescription MESSAGE_FIELD = new KinesisInternalFieldDescription("_message", VarcharType.VARCHAR, "Message text");
 
-    public static final KinesisInternalFieldDescription MESSAGE_TIMESTAMP = new KinesisInternalFieldDescription("_message_timestamp", BigintType.BIGINT, "Approximate message arrival timestamp");
+    public static final KinesisInternalFieldDescription MESSAGE_TIMESTAMP = new KinesisInternalFieldDescription("_message_timestamp", TimestampType.TIMESTAMP, "Approximate message arrival timestamp");
 
     public static final KinesisInternalFieldDescription MESSAGE_LENGTH_FIELD = new KinesisInternalFieldDescription("_message_length", BigintType.BIGINT, "Total number of message bytes");
 

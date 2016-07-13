@@ -433,12 +433,23 @@ public class KinesisRecordSet
             GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest();
             getShardIteratorRequest.setStreamName(split.getStreamName());
             getShardIteratorRequest.setShardId(split.getShardId());
+
+            // Explanation: when we have a sequence number from a prior read or checkpoint, always use it.
+            // Otherwise, decide if starting at a timestamp or the trim horizon based on configuration.
+            // If starting at a timestamp, sue the session variable ITER_START_TIMESTAMP when given, otherwise
+            // fallback on starting at ITER_OFFSET_SECONDS from timestamp.
             if (lastReadSeqNo == null) {
-                // This functionality requires 1.11.x or above of AWS SDK:
+                // Important: shard iterator type AT_TIMESTAMP requires 1.11.x or above of the AWS SDK.
                 if (SessionVariables.getIterFromTimestamp(session)) {
                     getShardIteratorRequest.setShardIteratorType("AT_TIMESTAMP");
-                    long startTs = System.currentTimeMillis() - (SessionVariables.getIterOffsetSeconds(session) * 1000);
-                    getShardIteratorRequest.setTimestamp(new Date(startTs));
+                    long iterStartTs = SessionVariables.getIterStartTimestamp(session);
+                    if (iterStartTs == 0) {
+                        long startTs = System.currentTimeMillis() - (SessionVariables.getIterOffsetSeconds(session) * 1000);
+                        getShardIteratorRequest.setTimestamp(new Date(startTs));
+                    }
+                    else {
+                        getShardIteratorRequest.setTimestamp(new Date(iterStartTs));
+                    }
                 }
                 else {
                     getShardIteratorRequest.setShardIteratorType("TRIM_HORIZON");

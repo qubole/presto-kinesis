@@ -107,10 +107,14 @@ public class KinesisConnector
     protected void buildPropertyList()
     {
         KinesisConnectorConfig cfg = this.metadata.getConnectorConfig();
+
+        this.propertyList.add(PropertyMetadata.booleanSessionProperty(
+                SessionVariables.CHECKPOINT_ENABLED, "Are checkpoints used in this session?", cfg.isCheckpointEnabled(), false));
         this.propertyList.add(PropertyMetadata.integerSessionProperty(
                 SessionVariables.ITERATION_NUMBER, "checkpoint iteration number", cfg.getIterationNumber(), false));
         this.propertyList.add(PropertyMetadata.stringSessionProperty(
                 SessionVariables.CHECKPOINT_LOGICAL_NAME, "checkpoint logical name", cfg.getLogicalProcessName(), false));
+
         this.propertyList.add(PropertyMetadata.integerSessionProperty(
                 SessionVariables.MAX_BATCHES, "max number of calls to Kinesis per query", cfg.getMaxBatches(), false));
         this.propertyList.add(PropertyMetadata.integerSessionProperty(
@@ -119,6 +123,9 @@ public class KinesisConnector
                 SessionVariables.ITER_FROM_TIMESTAMP, "Start from timestamp not trim horizon", cfg.isIterFromTimestamp(), false));
         this.propertyList.add(PropertyMetadata.longSessionProperty(
                 SessionVariables.ITER_OFFSET_SECONDS, "Seconds before current time to start iterator", cfg.getIterOffsetSeconds(), false));
+        // This does not have a corresponding configuration setting, since when not set we can use ITER_OFFSET_SECONDS
+        this.propertyList.add(PropertyMetadata.stringSessionProperty(
+                SessionVariables.ITER_START_TIMESTAMP, "Timestamp in Presto format to start iterator", SessionVariables.UNSET_TIMESTAMP, false));
     }
 
     public void registerShutdownObject(ConnectorShutdown obj)

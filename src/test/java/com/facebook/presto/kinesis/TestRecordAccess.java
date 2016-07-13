@@ -76,9 +76,10 @@ public class TestRecordAccess
     public void start()
             throws Exception
     {
+        // TODO: is there another way to get the client out?
         clientManager = new InjectorUtils.KinesisTestClientManager();
         mockClient = (MockKinesisClient) clientManager.getClient();
-        KinesisConnectorModule.setAltProvider(clientManager);
+        KinesisConnectorModule.setAltProviderClass(InjectorUtils.KinesisTestClientManager.class);
         spinUp();
     }
 
@@ -87,7 +88,6 @@ public class TestRecordAccess
             throws Exception
     {
         queryRunner.close();
-        mockClient.shutdown();
     }
 
     /** Create query runner, embedded server, and the plug in (do this once). */
