@@ -84,7 +84,7 @@ public class TestMinimalFunctionality
     public void start(String accessKey, String secretKey)
         throws Exception
     {
-        embeddedKinesisStream = new EmbeddedKinesisStream(accessKey, secretKey);
+        embeddedKinesisStream = new EmbeddedKinesisStream(TestUtils.noneToBlank(accessKey), TestUtils.noneToBlank(secretKey));
     }
 
     @AfterClass
@@ -108,7 +108,7 @@ public class TestMinimalFunctionality
         TestUtils.installKinesisPlugin(queryRunner,
                 ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
                 put(createEmptyStreamDescription(streamName, new SchemaTableName("default", streamName))).build(),
-                accessKey, secretKey);
+                TestUtils.noneToBlank(accessKey), TestUtils.noneToBlank(secretKey));
     }
 
     private void createMessages(String streamName, int count)

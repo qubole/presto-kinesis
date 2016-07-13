@@ -21,6 +21,7 @@ import java.util.function.Supplier;
 
 import javax.inject.Inject;
 
+import com.google.inject.Injector;
 import io.airlift.log.Logger;
 
 import com.facebook.presto.spi.connector.ConnectorFactory;
@@ -33,9 +34,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 /**
+ * Kinesis version of Presto Plugin interface.
  *
- * Kinesis version of Presto Plugin interface. This class calls getServices method to create KinesisConnectorFactory
- * and KinesisConnector during server start,
+ * The connector manager injects the type manager and node manager, and then calls getServices
+ * to get the connector factory.
  */
 public class KinesisPlugin
         implements Plugin
@@ -46,6 +48,9 @@ public class KinesisPlugin
     private NodeManager nodeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
+    private Optional<Class<? extends KinesisClientProvider>> altProviderClass = Optional.empty();
+
+    private KinesisConnectorFactory factory;
 
     @Override
     public synchronized void setOptionalConfig(Map<String, String> optionalConfig)
@@ -64,7 +69,21 @@ public class KinesisPlugin
     @Inject
     public synchronized void setNodeManager(NodeManager nodeManager)
     {
+        log.info("Injecting node manager into KinesisPlugin");
         this.nodeManager = requireNonNull(nodeManager, "node is null");
+    }
+
+    @Override
+    public synchronized <T> List<T> getServices(Class<T> type)
+    {
+        if (type == ConnectorFactory.class) {
+            if (this.factory == null) {
+                log.info("Creating connector factory.");
+                this.factory = new KinesisConnectorFactory(typeManager, nodeManager, tableDescriptionSupplier, optionalConfig, altProviderClass);
+            }
+            return ImmutableList.of(type.cast(this.factory));
+        }
+        return ImmutableList.of();
     }
 
     @VisibleForTesting
@@ -73,13 +92,21 @@ public class KinesisPlugin
         this.tableDescriptionSupplier = Optional.of(requireNonNull(tableDescriptionSupplier, "tableDescriptionSupplier is null"));
     }
 
-    @Override
-    public synchronized <T> List<T> getServices(Class<T> type)
+    @VisibleForTesting
+    public <T extends KinesisClientProvider> void setAltProviderClass(Class<T> aType)
     {
-        if (type == ConnectorFactory.class) {
-            log.info("Creating connector factory.");
-            return ImmutableList.of(type.cast(new KinesisConnectorFactory(typeManager, nodeManager, tableDescriptionSupplier, optionalConfig)));
+        // Note: this can be used for other cases besides testing but that was the original motivation
+        altProviderClass = Optional.of(requireNonNull(aType, "Provider class type is null"));
+    }
+
+    @VisibleForTesting
+    public synchronized Injector getInjector()
+    {
+        if (this.factory != null) {
+            return this.factory.getInjector();
         }
-        return ImmutableList.of();
+        else {
+            return null;
+        }
     }
 }

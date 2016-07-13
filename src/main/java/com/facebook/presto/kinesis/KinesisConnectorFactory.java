@@ -54,17 +54,24 @@ public class KinesisConnectorFactory
     private NodeManager nodeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
+    private Optional<Class<? extends KinesisClientProvider>> altProviderClass = Optional.empty();
+
     private KinesisHandleResolver handleResolver;
+
+    private Injector injector;
 
     KinesisConnectorFactory(TypeManager typeManager,
                             NodeManager nodeManager,
-            Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
-            Map<String, String> optionalConfig)
+                            Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
+                            Map<String, String> optionalConfig,
+                            Optional<Class<? extends KinesisClientProvider>> altProviderClass)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
         this.tableDescriptionSupplier = requireNonNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
         this.optionalConfig = requireNonNull(optionalConfig, "optionalConfig is null");
+        this.altProviderClass = requireNonNull(altProviderClass, "altProviderClass is null");
+
         this.handleResolver = new KinesisHandleResolver(connectorName);
 
         // Explanation: AWS uses a newer version of jackson (2.6.6) than airlift (2.4.4).  In order to upgrade
@@ -107,6 +114,14 @@ public class KinesisConnectorFactory
                             // Note: moved creation from KinesisConnectorModule because connector manager accesses it earlier!
                             binder.bind(KinesisHandleResolver.class).toInstance(handleResolver);
 
+                            // Moved creation here from KinesisConnectorModule to make it easier to parameterize
+                            if (altProviderClass.isPresent()) {
+                                binder.bind(KinesisClientProvider.class).to(altProviderClass.get()).in(Scopes.SINGLETON);
+                            }
+                            else {
+                                binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
+                            }
+
                             if (tableDescriptionSupplier.isPresent()) {
                                 binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).toInstance(tableDescriptionSupplier.get());
                             }
@@ -117,18 +132,18 @@ public class KinesisConnectorFactory
                     }
                 );
 
-            Injector injector = app.strictConfig()
+            this.injector = app.strictConfig()
                         .doNotInitializeLogging()
                         .setRequiredConfigurationProperties(config)
                         .setOptionalConfigurationProperties(optionalConfig)
                         .initialize();
 
-            KinesisConnector connector = injector.getInstance(KinesisConnector.class);
+            KinesisConnector connector = this.injector.getInstance(KinesisConnector.class);
 
             // Register objects for shutdown, at the moment only KinesisTableDescriptionSupplier
             if (!tableDescriptionSupplier.isPresent()) {
                 // This will shutdown related dependent objects as well:
-                KinesisTableDescriptionSupplier supp = getTableDescSupplier(injector);
+                KinesisTableDescriptionSupplier supp = getTableDescSupplier(this.injector);
                 connector.registerShutdownObject(supp);
             }
 
@@ -153,5 +168,10 @@ public class KinesisConnectorFactory
                 inj.getInstance(Key.get(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}));
         requireNonNull(inj, "Injector cannot find any table description supplier");
         return (KinesisTableDescriptionSupplier) supplier;
+    }
+
+    protected Injector getInjector()
+    {
+        return this.injector;
     }
 }

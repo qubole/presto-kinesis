@@ -15,13 +15,12 @@ package com.facebook.presto.kinesis;
 
 import java.util.List;
 
-import com.facebook.presto.metadata.InMemoryNodeManager;
+import com.facebook.presto.kinesis.util.TestUtils;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
-import com.facebook.presto.type.TypeRegistry;
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.google.common.collect.ImmutableMap;
@@ -42,11 +41,9 @@ public class TestKinesisPlugin
     @Test
     public ConnectorFactory testConnectorExists()
     {
-        KinesisPlugin plugin = new KinesisPlugin();
-        // Normally done by plug in manager, handle manually here
-        plugin.setTypeManager(new TypeRegistry());
-        plugin.setNodeManager(new InMemoryNodeManager());
+        KinesisPlugin plugin = TestUtils.createPluginInstance();
 
+        // Create factory manually to double check everything is done right
         List<ConnectorFactory> factories = plugin.getServices(ConnectorFactory.class);
         assertNotNull(factories);
         assertEquals(factories.size(), 1);
@@ -68,8 +65,8 @@ public class TestKinesisPlugin
 
         Connector c = factory.create("kinesis.test-connector", ImmutableMap.<String, String>builder()
                 .put("kinesis.hide-internal-columns", "false")
-                .put("kinesis.access-key", awsAccessKey)
-                .put("kinesis.secret-key", awsSecretKey)
+                .put("kinesis.access-key", TestUtils.noneToBlank(awsAccessKey))
+                .put("kinesis.secret-key", TestUtils.noneToBlank(awsSecretKey))
                 .build());
         assertNotNull(c);
 

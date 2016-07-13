@@ -14,15 +14,18 @@
 package com.facebook.presto.kinesis.s3config;
 
 import com.amazonaws.services.s3.AmazonS3URI;
+import com.facebook.presto.kinesis.KinesisConnector;
+import com.facebook.presto.kinesis.KinesisPlugin;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
 import com.facebook.presto.kinesis.KinesisStreamFieldDescription;
 import com.facebook.presto.kinesis.KinesisStreamFieldGroup;
 import com.facebook.presto.kinesis.KinesisTableDescriptionSupplier;
-import com.facebook.presto.kinesis.util.InjectorUtils;
+import com.facebook.presto.kinesis.util.TestUtils;
 import com.facebook.presto.spi.SchemaTableName;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import io.airlift.log.Logger;
+import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -53,7 +56,7 @@ public class TestS3TableConfigClient
         assertEquals(uri1.getKey(), "prod/client_actions");
         assertTrue(uri1.getRegion() == null);
 
-        // TEMP:
+        // show info:
         log.info("Tested out URI1 : " + uri1.toString());
 
         AmazonS3URI uri2 = new AmazonS3URI("s3://some.big.bucket/long/complex/path");
@@ -65,34 +68,46 @@ public class TestS3TableConfigClient
         assertEquals(uri2.getKey(), "long/complex/path");
         assertTrue(uri2.getRegion() == null);
 
-        // TEMP:
+        // info:
         log.info("Tested out URI2 : " + uri2.toString());
 
-        AmazonS3URI uri3 = new AmazonS3URI("s3://stitchfix.aa.config/unit-test/presto-kinesis");
+        AmazonS3URI uri3 = new AmazonS3URI("s3://presto.kinesis.config/unit-test/presto-kinesis");
         assertNotNull(uri3.getKey());
         assertNotNull(uri3.getBucket());
 
-        assertEquals(uri3.toString(), "s3://stitchfix.aa.config/unit-test/presto-kinesis");
-        assertEquals(uri3.getBucket(), "stitchfix.aa.config");
+        assertEquals(uri3.toString(), "s3://presto.kinesis.config/unit-test/presto-kinesis");
+        assertEquals(uri3.getBucket(), "presto.kinesis.config");
         assertEquals(uri3.getKey(), "unit-test/presto-kinesis");
     }
 
+    @Parameters({
+            "kinesis.tableDescriptionS3",
+            "kinesis.awsAccessKey",
+            "kinesis.awsSecretKey"
+    })
     @Test
-    public void testTableReading()
+    public void testTableReading(String tableDescriptionS3, String accessKey, String secretKey)
     {
+        // To run this test: setup an S3 bucket with a folder for unit testing, and put the
+        // testtable.json file in that folder.
+
         // Create dependent objects, including the minimal config needed for this test
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
                 .put("kinesis.table-description-dir", "etc/kinesis")
-                .put("kinesis.table-descriptions-s3", "s3://stitchfix.aa.config/unit-test/presto-kinesis")
+                .put("kinesis.table-descriptions-s3", tableDescriptionS3)
                 .put("kinesis.default-schema", "kinesis")
                 .put("kinesis.hide-internal-columns", "false")
+                .put("kinesis.access-key", TestUtils.noneToBlank(accessKey))
+                .put("kinesis.secret-key", TestUtils.noneToBlank(secretKey))
                 .build();
 
-        Injector injector = InjectorUtils.makeInjector(properties);
+        KinesisPlugin kinesisPlugin = TestUtils.createPluginInstance();
+        KinesisConnector kinesisConnector = TestUtils.createConnector(kinesisPlugin, properties, false);
+        Injector injector = kinesisPlugin.getInjector();
         assertNotNull(injector);
 
         // Get the supplier from the injector
-        KinesisTableDescriptionSupplier supplier = InjectorUtils.getTableDescSupplier(injector);
+        KinesisTableDescriptionSupplier supplier = TestUtils.getTableDescSupplier(injector);
         assertNotNull(supplier);
 
         S3TableConfigClient s3TableClient = injector.getInstance(S3TableConfigClient.class);

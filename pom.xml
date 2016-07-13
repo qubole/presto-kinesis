@@ -380,14 +380,15 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- integration tests take a very long time so only run them in the CI server -->
-                    <!-- This test will connect to AWS and you may incur AWS charges: -->
+                    <!-- These tests will connect to AWS and you may incur AWS charges: -->
                     <excludes>
                         <exclude>**/TestMinimalFunctionality.java</exclude>
                         <exclude>**/TestS3TableConfigClient.java</exclude>
                     </excludes>
                     <systemPropertyVariables>
-                        <kinesis.awsAccessKey>dunno</kinesis.awsAccessKey>
-                        <kinesis.awsSecretKey>dunno</kinesis.awsSecretKey>
+                        <kinesis.awsAccessKey>NONE</kinesis.awsAccessKey>
+                        <kinesis.awsSecretKey>NONE</kinesis.awsSecretKey>
+                        <kinesis.tableDescriptionS3>s3://stitchfix.aa.config/unit-test/presto-kinesis</kinesis.tableDescriptionS3>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>

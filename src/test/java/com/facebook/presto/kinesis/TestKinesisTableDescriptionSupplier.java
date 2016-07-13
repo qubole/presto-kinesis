@@ -13,7 +13,7 @@
  */
 package com.facebook.presto.kinesis;
 
-import com.facebook.presto.kinesis.util.InjectorUtils;
+import com.facebook.presto.kinesis.util.TestUtils;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.ConnectorTableMetadata;
 import com.facebook.presto.spi.SchemaTableName;
@@ -46,7 +46,10 @@ public class TestKinesisTableDescriptionSupplier
                 .put("kinesis.hide-internal-columns", "false")
                 .build();
 
-        injector = InjectorUtils.makeInjector(properties);
+        KinesisPlugin kinesisPlugin = TestUtils.createPluginInstance();
+        KinesisConnector kinesisConnector = TestUtils.createConnector(kinesisPlugin, properties, true);
+
+        injector = kinesisPlugin.getInjector();
         assertNotNull(injector);
     }
 
@@ -54,7 +57,7 @@ public class TestKinesisTableDescriptionSupplier
     public void testTableDefinition()
     {
         // Get the supplier from the injector
-        KinesisTableDescriptionSupplier supplier = InjectorUtils.getTableDescSupplier(injector);
+        KinesisTableDescriptionSupplier supplier = TestUtils.getTableDescSupplier(injector);
         assertNotNull(supplier);
 
         // Read table definition and verify

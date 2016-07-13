@@ -15,7 +15,7 @@ package com.facebook.presto.kinesis;
 
 import com.facebook.presto.Session;
 import com.facebook.presto.execution.QueryId;
-import com.facebook.presto.kinesis.util.InjectorUtils;
+import com.facebook.presto.kinesis.util.TestUtils;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.security.Identity;
@@ -73,7 +73,9 @@ public class TestSessionVariables
                 .put("kinesis.hide-internal-columns", "false")
                 .build();
 
-        injector = InjectorUtils.makeInjector(properties);
+        KinesisPlugin kinesisPlugin = TestUtils.createPluginInstance();
+        KinesisConnector connector = TestUtils.createConnector(kinesisPlugin, properties, true);
+        injector = kinesisPlugin.getInjector();
         assertNotNull(injector);
 
         protoSession = Session.builder(propManager)
@@ -88,7 +90,6 @@ public class TestSessionVariables
         session = protoSession.toConnectorSession("kinesis");
 
         // Connector needs to tell Presto about the session properties it supports
-        KinesisConnector connector = injector.getInstance(KinesisConnector.class);
         propManager.addConnectorSessionProperties("kinesis", connector.getSessionProperties());
     }
 

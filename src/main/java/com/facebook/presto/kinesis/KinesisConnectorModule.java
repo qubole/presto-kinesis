@@ -36,13 +36,6 @@ import com.google.inject.multibindings.Multibinder;
 public class KinesisConnectorModule
         implements Module
 {
-    private static Class<? extends KinesisClientProvider> altProviderClass = null;
-
-    public static <T extends KinesisClientProvider> void setAltProviderClass(Class<T> aType)
-    {
-        altProviderClass = aType;
-    }
-
     @Override
     public void configure(Binder binder)
     {
@@ -58,13 +51,6 @@ public class KinesisConnectorModule
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(KinesisStreamDescription.class);
-
-        if (altProviderClass == null) {
-            binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
-        }
-        else {
-            binder.bind(KinesisClientProvider.class).to(altProviderClass).in(Scopes.SINGLETON);
-        }
 
         binder.install(new KinesisDecoderModule());
 

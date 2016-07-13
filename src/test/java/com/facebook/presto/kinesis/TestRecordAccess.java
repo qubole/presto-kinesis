@@ -13,7 +13,7 @@
  */
 package com.facebook.presto.kinesis;
 
-import com.facebook.presto.kinesis.util.InjectorUtils;
+import com.facebook.presto.kinesis.util.KinesisTestClientManager;
 import com.facebook.presto.kinesis.util.MockKinesisClient;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.testing.MaterializedRow;
@@ -70,17 +70,30 @@ public class TestRecordAccess
     private String jsonStreamName;
     private StandaloneQueryRunner queryRunner;
     private MockKinesisClient mockClient;
-    private InjectorUtils.KinesisTestClientManager clientManager;
+    private KinesisTestClientManager clientManager;
 
     @BeforeClass
     public void start()
             throws Exception
     {
-        // TODO: is there another way to get the client out?
-        clientManager = new InjectorUtils.KinesisTestClientManager();
+        dummyStreamName = "test" + UUID.randomUUID().toString().replaceAll("-", "");
+        jsonStreamName = "sampleTable";
+        ImmutableMap<SchemaTableName, KinesisStreamDescription> streamMap =
+                ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
+                        put(createEmptyStreamDescription(dummyStreamName, new SchemaTableName("default", dummyStreamName))).
+                        put(createSimpleJsonStreamDescription(jsonStreamName, new SchemaTableName("default", jsonStreamName))).
+                        build();
+
+        this.queryRunner = new StandaloneQueryRunner(SESSION);
+        KinesisPlugin plugin = TestUtils.installKinesisPlugin(queryRunner, streamMap);
+
+        clientManager = TestUtils.getTestClientManager(plugin.getInjector());
         mockClient = (MockKinesisClient) clientManager.getClient();
-        KinesisConnectorModule.setAltProviderClass(InjectorUtils.KinesisTestClientManager.class);
-        spinUp();
+
+        mockClient.createStream(dummyStreamName, 2);
+        mockClient.createStream(jsonStreamName, 2);
+
+        log.info("Completed spinUp steps.  *** READY FOR QUERIES ***");
     }
 
     @AfterClass
@@ -88,26 +101,6 @@ public class TestRecordAccess
             throws Exception
     {
         queryRunner.close();
-    }
-
-    /** Create query runner, embedded server, and the plug in (do this once). */
-    public void spinUp()
-            throws Exception
-    {
-        dummyStreamName = "test" + UUID.randomUUID().toString().replaceAll("-", "");
-        jsonStreamName = "sampleTable";
-        mockClient.createStream(dummyStreamName, 2);
-        mockClient.createStream(jsonStreamName, 2);
-        this.queryRunner = new StandaloneQueryRunner(SESSION);
-
-        ImmutableMap<SchemaTableName, KinesisStreamDescription> streamMap =
-            ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
-                    put(createEmptyStreamDescription(dummyStreamName, new SchemaTableName("default", dummyStreamName))).
-                    put(createSimpleJsonStreamDescription(jsonStreamName, new SchemaTableName("default", jsonStreamName))).
-                    build();
-
-        TestUtils.installKinesisPlugin(queryRunner, streamMap, "", "");
-        log.info("Completed spinUp steps.  *** READY FOR QUERIES ***");
     }
 
     private void createDummyMessages(String streamName, int count)
