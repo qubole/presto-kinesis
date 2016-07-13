@@ -3,16 +3,14 @@
 Kinesis is Amazon’s fully managed cloud-based service for real-time processing
 of large, distributed data streams.
 
-Analogous to Kafka connector, this connector allows the use of Kinesis
-streams as tables in Presto, such that each data-blob in kinesis
-stream is presented as a row in Presto.  Streams can be live: rows
-will appear in query results as data is pushed into the stream, and disappear as they
-are dropped once their time expires.
+This connector allows the use of Kinesis streams as tables in Presto, such that each data-blob (message)
+in a kinesis stream is presented as a row in Presto.  A flexible table mapping approach lets us
+treat fields of the messages as columns in the table.
 
 Under the hood, a Kinesis shard iterator is used to retrieve the records, along with
 a series of getRecords calls.  The shard iterator starts by default 24 hours before
-the current time and works its way forward (this is configurable now, so we can
-change it as needed).  To be able to query a stream, table mappings are needed as
+the current time and works its way forward (this is configurable now, so it can
+changed  as needed).  To be able to query a stream, table mappings are needed as
 explained in [Table Definition] (https://github.com/stitchfix/presto-kinesis/wiki/Table-Definitions).
 These table definitions can be stored on Amazon S3 (preferred) or stored in
 a local directory on each Presto node.
