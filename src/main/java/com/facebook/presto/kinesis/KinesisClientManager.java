@@ -13,60 +13,77 @@
  */
 package com.facebook.presto.kinesis;
 
-import javax.inject.Named;
-
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.DescribeStreamRequest;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.google.inject.Inject;
 
 import io.airlift.log.Logger;
 
 /**
+ * Creates and manages AWS clients for this connector.
  *
- * Creates and manages clients for consumer
- *
+ * Note: credentials can be supplied explicitly through the configuration.  However when these are
+ * omitted, the default AWS provider chain is used (which includes instance profile credentials).
  */
-public class KinesisClientManager
+public class KinesisClientManager implements KinesisClientProvider
 {
     private static final Logger log = Logger.get(KinesisClientManager.class);
     private final AmazonKinesisClient client;
     private final KinesisAwsCredentials kinesisAwsCredentials;
+    private final AmazonS3Client amazonS3Client;
     private final AmazonDynamoDBClient dynamoDBClient;              // for Checkpointing
 
     @Inject
-    KinesisClientManager(@Named("connectorId") String connectorId,
-            KinesisConnectorConfig kinesisConnectorConfig)
+    KinesisClientManager(KinesisConnectorConfig kinesisConnectorConfig)
     {
-        log.info("Creating new client for Consuner");
-        if (kinesisConnectorConfig.getAccessKey() == null || kinesisConnectorConfig.getSecretKey() == null) {
-            this.kinesisAwsCredentials = null;
-            this.client = new AmazonKinesisClient(new DefaultAWSCredentialsProviderChain());
-            this.dynamoDBClient = new AmazonDynamoDBClient(new DefaultAWSCredentialsProviderChain());
-        }
-        else {
+        log.info("Creating new client for Consumer");
+        if (nonEmpty(kinesisConnectorConfig.getAccessKey()) && nonEmpty(kinesisConnectorConfig.getSecretKey())) {
             this.kinesisAwsCredentials = new KinesisAwsCredentials(kinesisConnectorConfig.getAccessKey(), kinesisConnectorConfig.getSecretKey());
             this.client = new AmazonKinesisClient(this.kinesisAwsCredentials);
+            this.amazonS3Client = new AmazonS3Client(this.kinesisAwsCredentials);
             this.dynamoDBClient = new AmazonDynamoDBClient(this.kinesisAwsCredentials);
+        }
+        else {
+            this.kinesisAwsCredentials = null;
+            DefaultAWSCredentialsProviderChain defaultChain = new DefaultAWSCredentialsProviderChain();
+            this.client = new AmazonKinesisClient(defaultChain);
+            this.amazonS3Client = new AmazonS3Client(defaultChain);
+            this.dynamoDBClient = new AmazonDynamoDBClient(defaultChain);
         }
 
         this.client.setEndpoint("kinesis." + kinesisConnectorConfig.getAwsRegion() + ".amazonaws.com");
         this.dynamoDBClient.setEndpoint("dynamodb." + kinesisConnectorConfig.getAwsRegion() + ".amazonaws.com");
     }
 
+    @Override
     public AmazonKinesisClient getClient()
     {
         return client;
     }
 
+    @Override
     public AmazonDynamoDBClient getDynamoDBClient()
     {
         return dynamoDBClient;
     }
 
+    @Override
+    public AmazonS3Client getS3Client()
+    {
+        return amazonS3Client;
+    }
+
+    @Override
     public DescribeStreamRequest getDescribeStreamRequest()
     {
         return new DescribeStreamRequest();
+    }
+
+    public boolean nonEmpty(String str)
+    {
+        return str != null && !str.isEmpty();
     }
 }

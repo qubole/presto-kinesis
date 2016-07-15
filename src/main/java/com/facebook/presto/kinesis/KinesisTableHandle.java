@@ -16,12 +16,11 @@ package com.facebook.presto.kinesis;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorTableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 /**
  *
@@ -52,8 +51,6 @@ public class KinesisTableHandle
      */
     private final String streamName;
 
-    private final ConnectorSession session;
-
     private final String messageDataFormat;
 
     @JsonCreator
@@ -62,15 +59,13 @@ public class KinesisTableHandle
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("streamName") String streamName,
-            @JsonProperty("messageDataFormat") String messageDataFormat,
-            @JsonProperty("session") ConnectorSession session)
+            @JsonProperty("messageDataFormat") String messageDataFormat)
     {
         this.connectorId = checkNotNull(connectorId, "connectorId is null");
         this.schemaName = checkNotNull(schemaName, "schemaName is null");
         this.tableName = checkNotNull(tableName, "tableName is null");
         this.streamName = checkNotNull(streamName, "topicName is null");
         this.messageDataFormat = checkNotNull(messageDataFormat, "messageDataFormat is null");
-        this.session = checkNotNull(session, "session is null");
     }
 
     @JsonProperty
@@ -103,12 +98,6 @@ public class KinesisTableHandle
         return messageDataFormat;
     }
 
-    @JsonProperty
-    public ConnectorSession getSession()
-    {
-        return session;
-    }
-
     public SchemaTableName toSchemaTableName()
     {
         return new SchemaTableName(schemaName, tableName);
@@ -117,7 +106,7 @@ public class KinesisTableHandle
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(connectorId, schemaName, tableName, streamName, messageDataFormat);
+        return Objects.hash(connectorId, schemaName, tableName, streamName, messageDataFormat);
     }
 
     @Override
@@ -131,11 +120,11 @@ public class KinesisTableHandle
         }
 
         KinesisTableHandle other = (KinesisTableHandle) obj;
-        return Objects.equal(this.connectorId, other.connectorId)
-                && Objects.equal(this.schemaName, other.schemaName)
-                && Objects.equal(this.tableName, other.tableName)
-                && Objects.equal(this.streamName, other.streamName)
-                && Objects.equal(this.messageDataFormat, other.messageDataFormat);
+        return Objects.equals(this.connectorId, other.connectorId)
+                && Objects.equals(this.schemaName, other.schemaName)
+                && Objects.equals(this.tableName, other.tableName)
+                && Objects.equals(this.streamName, other.streamName)
+                && Objects.equals(this.messageDataFormat, other.messageDataFormat);
     }
 
     @Override
@@ -148,16 +137,5 @@ public class KinesisTableHandle
                 .add("streamName", streamName)
                 .add("messageDataFormat", messageDataFormat)
                 .toString();
-    }
-
-    public static String getSessionProperty(ConnectorSession session, String key)
-    {
-        String value = session.getProperties().get(key);
-        if (value == null) {
-            return "0";
-        }
-        else {
-            return value;
-        }
     }
 }

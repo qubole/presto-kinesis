@@ -27,7 +27,8 @@ import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
-import com.google.common.base.Objects;
+import com.facebook.presto.spi.type.TimestampType;
+import java.util.Objects;
 import com.google.common.collect.ImmutableSet;
 
 public class KinesisInternalFieldDescription
@@ -46,6 +47,8 @@ public class KinesisInternalFieldDescription
 
     public static final KinesisInternalFieldDescription MESSAGE_FIELD = new KinesisInternalFieldDescription("_message", VarcharType.VARCHAR, "Message text");
 
+    public static final KinesisInternalFieldDescription MESSAGE_TIMESTAMP = new KinesisInternalFieldDescription("_message_timestamp", TimestampType.TIMESTAMP, "Approximate message arrival timestamp");
+
     public static final KinesisInternalFieldDescription MESSAGE_LENGTH_FIELD = new KinesisInternalFieldDescription("_message_length", BigintType.BIGINT, "Total number of message bytes");
 
     public static final KinesisInternalFieldDescription PARTITION_KEY_FIELD = new KinesisInternalFieldDescription("_partition_key", VarcharType.VARCHAR, "Key text");
@@ -54,7 +57,8 @@ public class KinesisInternalFieldDescription
     {
         return ImmutableSet.of(SHARD_ID_FIELD, SHARD_SEQUENCE_ID_FIELD,
                 SEGMENT_START_FIELD, SEGMENT_END_FIELD, SEGMENT_COUNT_FIELD,
-                PARTITION_KEY_FIELD, MESSAGE_FIELD, MESSAGE_VALID_FIELD, MESSAGE_LENGTH_FIELD);
+                PARTITION_KEY_FIELD, MESSAGE_FIELD, MESSAGE_VALID_FIELD, MESSAGE_LENGTH_FIELD,
+                MESSAGE_TIMESTAMP);
     }
 
     private final String name;
@@ -97,7 +101,7 @@ public class KinesisInternalFieldDescription
 
     ColumnMetadata getColumnMetadata(boolean hidden)
     {
-        return new ColumnMetadata(name, type, false, comment, hidden);
+        return new ColumnMetadata(name, type, comment, hidden);
     }
 
     public KinesisFieldValueProvider forBooleanValue(boolean value)
@@ -118,7 +122,7 @@ public class KinesisInternalFieldDescription
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(name, type);
+        return Objects.hash(name, type);
     }
 
     @Override
@@ -132,8 +136,8 @@ public class KinesisInternalFieldDescription
         }
 
         KinesisInternalFieldDescription other = (KinesisInternalFieldDescription) obj;
-        return Objects.equal(this.name, other.name) &&
-                Objects.equal(this.type, other.type);
+        return Objects.equals(this.name, other.name) &&
+                Objects.equals(this.type, other.type);
     }
 
     @Override

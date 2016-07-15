@@ -15,28 +15,35 @@ package com.facebook.presto.kinesis;
 
 import java.util.List;
 
+import com.facebook.presto.kinesis.util.TestUtils;
+import com.facebook.presto.spi.connector.ConnectorMetadata;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
-import com.facebook.presto.spi.Connector;
-import com.facebook.presto.spi.ConnectorFactory;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeManager;
-import com.facebook.presto.spi.type.TypeSignature;
-import com.google.common.collect.ImmutableList;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.google.common.collect.ImmutableMap;
 
+import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
+/**
+ * Test that the plug in API is satisfied and all of the required objects can be created.
+ *
+ * This will not make any calls to AWS, it merely checks that all of the Plug in SPI
+ * objects are in place.
+ */
 public class TestKinesisPlugin
 {
     @Test
     public ConnectorFactory testConnectorExists()
     {
-        KinesisPlugin plugin = new KinesisPlugin();
-        plugin.setTypeManager(new TestingTypeManager());
+        KinesisPlugin plugin = TestUtils.createPluginInstance();
 
+        // Create factory manually to double check everything is done right
         List<ConnectorFactory> factories = plugin.getServices(ConnectorFactory.class);
         assertNotNull(factories);
         assertEquals(factories.size(), 1);
@@ -53,34 +60,23 @@ public class TestKinesisPlugin
     public void testSpinUp(String awsAccessKey, String awsSecretKey)
     {
         ConnectorFactory factory = testConnectorExists();
+        // Important: this has to be created before we setup the injector in the factory:
+        assertNotNull(factory.getHandleResolver());
+
         Connector c = factory.create("kinesis.test-connector", ImmutableMap.<String, String>builder()
-                .put("kinesis.table-names", "test")
                 .put("kinesis.hide-internal-columns", "false")
-                .put("kinesis.access-key", awsAccessKey)
-                .put("kinesis.secret-key", awsSecretKey)
+                .put("kinesis.access-key", TestUtils.noneToBlank(awsAccessKey))
+                .put("kinesis.secret-key", TestUtils.noneToBlank(awsSecretKey))
                 .build());
         assertNotNull(c);
-    }
 
-    private static class TestingTypeManager
-            implements TypeManager
-    {
-        @Override
-        public Type getType(TypeSignature signature)
-        {
-            return null;
-        }
+        // Verify that the key objects have been created on the connector
+        assertNotNull(c.getRecordSetProvider());
+        assertNotNull(c.getSplitManager());
+        ConnectorMetadata md = c.getMetadata(KinesisTransactionHandle.INSTANCE);
+        assertNotNull(md);
 
-        @Override
-        public Type getParameterizedType(String baseTypeName, List<TypeSignature> typeParameters, List<Object> literalParameters)
-        {
-            return null;
-        }
-
-        @Override
-        public List<Type> getTypes()
-        {
-            return ImmutableList.of();
-        }
+        ConnectorTransactionHandle handle = c.beginTransaction(READ_COMMITTED, true);
+        assertTrue(handle != null && handle instanceof KinesisTransactionHandle);
     }
 }

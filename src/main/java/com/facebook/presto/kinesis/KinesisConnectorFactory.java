@@ -13,18 +13,23 @@
  */
 package com.facebook.presto.kinesis;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
+import com.facebook.presto.spi.ConnectorHandleResolver;
+import com.facebook.presto.spi.NodeManager;
+import com.google.inject.Key;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
+import io.airlift.log.Logger;
 
 import java.util.Map;
 import java.util.Optional;
 
-import com.facebook.presto.spi.Connector;
-import com.facebook.presto.spi.ConnectorFactory;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.TypeManager;
-import com.google.common.base.Supplier;
+import java.util.function.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -42,30 +47,57 @@ import com.google.inject.name.Names;
 public class KinesisConnectorFactory
         implements ConnectorFactory
 {
+    public static final String connectorName = "kinesis";
+    private static final Logger log = Logger.get(KinesisConnectorFactory.class);
+
     private TypeManager typeManager;
+    private NodeManager nodeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
+    private Optional<Class<? extends KinesisClientProvider>> altProviderClass = Optional.empty();
+
+    private KinesisHandleResolver handleResolver;
+
+    private Injector injector;
 
     KinesisConnectorFactory(TypeManager typeManager,
-            Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
-            Map<String, String> optionalConfig)
+                            NodeManager nodeManager,
+                            Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
+                            Map<String, String> optionalConfig,
+                            Optional<Class<? extends KinesisClientProvider>> altProviderClass)
     {
-        this.typeManager = checkNotNull(typeManager, "typeManager is null");
-        this.optionalConfig = checkNotNull(optionalConfig, "optionalConfig is null");
-        this.tableDescriptionSupplier = checkNotNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
+        this.typeManager = requireNonNull(typeManager, "typeManager is null");
+        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.tableDescriptionSupplier = requireNonNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
+        this.optionalConfig = requireNonNull(optionalConfig, "optionalConfig is null");
+        this.altProviderClass = requireNonNull(altProviderClass, "altProviderClass is null");
+
+        this.handleResolver = new KinesisHandleResolver(connectorName);
+
+        // Explanation: AWS uses a newer version of jackson (2.6.6) than airlift (2.4.4).  In order to upgrade
+        // to the latest version of the AWS API, we need to turn this feature off.  This can be set
+        // in jvm.properties but trying to make this more foolproof.
+        System.setProperty("com.amazonaws.sdk.disableCbor", "true");
     }
 
     @Override
     public String getName()
     {
-        return "kinesis";
+        return connectorName;
+    }
+
+    @Override
+    public ConnectorHandleResolver getHandleResolver()
+    {
+        return this.handleResolver;
     }
 
     @Override
     public Connector create(String connectorId, Map<String, String> config)
     {
-        checkNotNull(connectorId, "connectorId is null");
-        checkNotNull(config, "config is null");
+        log.info("In connector factory create method.  Connector id: " + connectorId);
+        requireNonNull(connectorId, "connectorId is null");
+        requireNonNull(config, "config is null");
 
         try {
             Bootstrap app = new Bootstrap(
@@ -78,6 +110,17 @@ public class KinesisConnectorFactory
                         {
                             binder.bindConstant().annotatedWith(Names.named("connectorId")).to(connectorId);
                             binder.bind(TypeManager.class).toInstance(typeManager);
+                            binder.bind(NodeManager.class).toInstance(nodeManager);
+                            // Note: moved creation from KinesisConnectorModule because connector manager accesses it earlier!
+                            binder.bind(KinesisHandleResolver.class).toInstance(handleResolver);
+
+                            // Moved creation here from KinesisConnectorModule to make it easier to parameterize
+                            if (altProviderClass.isPresent()) {
+                                binder.bind(KinesisClientProvider.class).to(altProviderClass.get()).in(Scopes.SINGLETON);
+                            }
+                            else {
+                                binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
+                            }
 
                             if (tableDescriptionSupplier.isPresent()) {
                                 binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).toInstance(tableDescriptionSupplier.get());
@@ -89,16 +132,46 @@ public class KinesisConnectorFactory
                     }
                 );
 
-            Injector injector = app.strictConfig()
+            this.injector = app.strictConfig()
                         .doNotInitializeLogging()
                         .setRequiredConfigurationProperties(config)
                         .setOptionalConfigurationProperties(optionalConfig)
                         .initialize();
 
-                return injector.getInstance(KinesisConnector.class);
+            KinesisConnector connector = this.injector.getInstance(KinesisConnector.class);
+
+            // Register objects for shutdown, at the moment only KinesisTableDescriptionSupplier
+            if (!tableDescriptionSupplier.isPresent()) {
+                // This will shutdown related dependent objects as well:
+                KinesisTableDescriptionSupplier supp = getTableDescSupplier(this.injector);
+                connector.registerShutdownObject(supp);
+            }
+
+            log.info("Done with injector.  Returning the connector itself.");
+            return connector;
         }
         catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    /**
+     * Convenience method to get the table description supplier.
+     *
+     * @param inj
+     * @return
+     */
+    protected KinesisTableDescriptionSupplier getTableDescSupplier(Injector inj)
+    {
+        requireNonNull(inj, "Injector is missing in getTableDescSupplier");
+        Supplier<Map<SchemaTableName, KinesisStreamDescription>> supplier =
+                inj.getInstance(Key.get(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}));
+        requireNonNull(inj, "Injector cannot find any table description supplier");
+        return (KinesisTableDescriptionSupplier) supplier;
+    }
+
+    protected Injector getInjector()
+    {
+        return this.injector;
     }
 }

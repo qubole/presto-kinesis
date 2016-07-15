@@ -15,14 +15,15 @@ package com.facebook.presto.kinesis;
 
 import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static io.airlift.configuration.ConfigurationModule.bindConfig;
+import static java.util.Objects.requireNonNull;
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonBinder.jsonBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 
 import javax.inject.Inject;
 
 import com.facebook.presto.kinesis.decoder.KinesisDecoderModule;
+import com.facebook.presto.kinesis.s3config.S3TableConfigClient;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -38,16 +39,15 @@ public class KinesisConnectorModule
     @Override
     public void configure(Binder binder)
     {
+        // Note: handle resolver handled separately, along with several other classes.
         binder.bind(KinesisConnector.class).in(Scopes.SINGLETON);
 
-        binder.bind(KinesisHandleResolver.class).in(Scopes.SINGLETON);
         binder.bind(KinesisMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KinesisSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(KinesisRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(S3TableConfigClient.class).in(Scopes.SINGLETON);
 
-        binder.bind(KinesisClientManager.class).in(Scopes.SINGLETON);
-
-        bindConfig(binder).to(KinesisConnectorConfig.class);
+        configBinder(binder).bindConfig(KinesisConnectorConfig.class);
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
         jsonCodecBinder(binder).bindJsonCodec(KinesisStreamDescription.class);
@@ -76,7 +76,7 @@ public class KinesisConnectorModule
         public TypeDeserializer(TypeManager typeManager)
         {
             super(Type.class);
-            this.typeManager = checkNotNull(typeManager, "typeManager is null");
+            this.typeManager = requireNonNull(typeManager, "typeManager is null");
         }
 
         @Override

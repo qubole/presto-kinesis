@@ -21,9 +21,11 @@ import com.facebook.presto.kinesis.decoder.KinesisDecoderRegistry;
 import com.facebook.presto.kinesis.decoder.KinesisFieldDecoder;
 import com.facebook.presto.kinesis.decoder.KinesisRowDecoder;
 import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorRecordSetProvider;
+import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.RecordSet;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -32,14 +34,14 @@ public class KinesisRecordSetProvider
         implements ConnectorRecordSetProvider
 {
     private final KinesisHandleResolver handleResolver;
-    private final KinesisClientManager clientManager;
+    private final KinesisClientProvider clientManager;
     private final KinesisDecoderRegistry registry;
     private final KinesisConnectorConfig kinesisConnectorConfig;
 
     @Inject
     public  KinesisRecordSetProvider(KinesisDecoderRegistry registry,
             KinesisHandleResolver handleResolver,
-            KinesisClientManager clientManager,
+            KinesisClientProvider clientManager,
             KinesisConnectorConfig kinesisConnectorConfig)
     {
         this.registry = checkNotNull(registry, "registry is null");
@@ -49,7 +51,8 @@ public class KinesisRecordSetProvider
     }
 
     @Override
-    public RecordSet getRecordSet(ConnectorSplit split, List<? extends ColumnHandle> columns)
+    public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session,
+                                  ConnectorSplit split, List<? extends ColumnHandle> columns)
     {
         KinesisSplit kinesisSplit = handleResolver.convertSplit(split);
 
@@ -74,6 +77,6 @@ public class KinesisRecordSetProvider
         ImmutableList<KinesisColumnHandle> handles = handleBuilder.build();
         ImmutableMap<KinesisColumnHandle, KinesisFieldDecoder<?>> messageFieldDecoders = messageFieldDecoderBuilder.build();
 
-        return new KinesisRecordSet(kinesisSplit, clientManager, handles, messageDecoder, messageFieldDecoders, kinesisConnectorConfig);
+        return new KinesisRecordSet(kinesisSplit, session, clientManager, handles, messageDecoder, messageFieldDecoders, kinesisConnectorConfig);
     }
 }

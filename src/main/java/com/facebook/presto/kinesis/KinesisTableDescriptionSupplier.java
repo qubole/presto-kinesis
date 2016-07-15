@@ -13,27 +13,30 @@
  */
 package com.facebook.presto.kinesis;
 
+import com.facebook.presto.kinesis.s3config.S3TableConfigClient;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 
-import java.io.File;
+import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import org.weakref.jmx.internal.guava.base.Objects;
 
-import com.facebook.presto.kinesis.decoder.dummy.DummyKinesisRowDecoder;
 import com.facebook.presto.spi.SchemaTableName;
-import com.google.common.base.Supplier;
+import java.util.function.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Files;
 import com.google.inject.Inject;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNull;
 
 /**
  *
@@ -42,29 +45,42 @@ import static java.util.Arrays.asList;
  *
  */
 public class KinesisTableDescriptionSupplier
-        implements Supplier<Map<SchemaTableName, KinesisStreamDescription>>
+        implements Supplier<Map<SchemaTableName, KinesisStreamDescription>>, ConnectorShutdown
 {
     private static final Logger log = Logger.get(KinesisTableDescriptionSupplier.class);
 
-    public final KinesisConnectorConfig kinesisConnectorConfig;
-    public final JsonCodec<KinesisStreamDescription> streamDescriptionCodec;
+    private final KinesisConnectorConfig kinesisConnectorConfig;
+    private final JsonCodec<KinesisStreamDescription> streamDescriptionCodec;
+    private final S3TableConfigClient s3TableConfigClient;
 
     @Inject
     KinesisTableDescriptionSupplier(KinesisConnectorConfig kinesisConnectorConfig,
-            JsonCodec<KinesisStreamDescription> streamDescriptionCodec)
+                                    JsonCodec<KinesisStreamDescription> streamDescriptionCodec,
+                                    S3TableConfigClient anS3Client)
     {
-        this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "kinesisConnectorConfig is null");
-        this.streamDescriptionCodec = checkNotNull(streamDescriptionCodec, "streamDescriptionCodec is null");
+        this.kinesisConnectorConfig = requireNonNull(kinesisConnectorConfig, "kinesisConnectorConfig is null");
+        this.streamDescriptionCodec = requireNonNull(streamDescriptionCodec, "streamDescriptionCodec is null");
+        this.s3TableConfigClient = requireNonNull(anS3Client, "S3 table config client is null");
     }
 
     @Override
     public Map<SchemaTableName, KinesisStreamDescription> get()
     {
+        if (this.s3TableConfigClient.isUsingS3()) {
+            return this.s3TableConfigClient.getTablesFromS3();
+        }
+        else {
+            return getTablesFromDirectory();
+        }
+    }
+
+    public Map<SchemaTableName, KinesisStreamDescription> getTablesFromDirectory()
+    {
         ImmutableMap.Builder<SchemaTableName, KinesisStreamDescription> builder = ImmutableMap.builder();
         try {
-            for (File file : listFiles(kinesisConnectorConfig.getTableDescriptionDir())) {
-                if (file.isFile() && file.getName().endsWith(".json")) {
-                    KinesisStreamDescription table = streamDescriptionCodec.fromJson(Files.toByteArray(file));
+            for (Path file : listFiles(Paths.get(kinesisConnectorConfig.getTableDescriptionDir()))) {
+                if (Files.isRegularFile(file) && file.getFileName().toString().endsWith("json")) {
+                    KinesisStreamDescription table = streamDescriptionCodec.fromJson(Files.readAllBytes(file));
                     String schemaName = Objects.firstNonNull(table.getSchemaName(), kinesisConnectorConfig.getDefaultSchema());
                     log.debug("Kinesis table %s %s %s", schemaName, table.getTableName(), table);
                     builder.put(new SchemaTableName(schemaName, table.getTableName()), table);
@@ -72,35 +88,9 @@ public class KinesisTableDescriptionSupplier
             }
 
             Map<SchemaTableName, KinesisStreamDescription> tableDefinitions = builder.build();
-
             log.debug("Loaded table definitions: %s", tableDefinitions.keySet());
 
-            builder = ImmutableMap.builder();
-            for (String definedTable : kinesisConnectorConfig.getTableNames()) {
-                SchemaTableName tableName;
-                try {
-                    tableName = SchemaTableName.valueOf(definedTable);
-                }
-                catch (IllegalArgumentException iae) {
-                    tableName = new SchemaTableName(kinesisConnectorConfig.getDefaultSchema(), definedTable);
-                }
-
-                if (tableDefinitions.containsKey(tableName)) {
-                    KinesisStreamDescription kinesisTable = tableDefinitions.get(tableName);
-                    log.debug("Found Table definition fo %s %s", tableName, kinesisTable);
-                    builder.put(tableName, kinesisTable);
-                }
-                else {
-                    // A dummy table definition only supports the internal columns
-                    log.debug("Created dummy Table definition for %s", tableName);
-                    builder.put(tableName, new KinesisStreamDescription(tableName.getTableName(),
-                            tableName.getSchemaName(),
-                            definedTable,
-                            new KinesisStreamFieldGroup(DummyKinesisRowDecoder.NAME, ImmutableList.<KinesisStreamFieldDescription>of())));
-                }
-            }
-
-            return builder.build();
+            return tableDefinitions;
         }
         catch (IOException e) {
             log.warn(e, "Error: ");
@@ -108,13 +98,28 @@ public class KinesisTableDescriptionSupplier
         }
     }
 
-    private static List<File> listFiles(File dir)
+    /** Shutdown any periodic update jobs. */
+    @Override
+    public void shutdown()
     {
-        if ((dir != null) && dir.isDirectory()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                log.debug("Considering files: %s", asList(files));
-                return ImmutableList.copyOf(files);
+        this.s3TableConfigClient.shutdown();
+        return;
+    }
+
+    private static List<Path> listFiles(Path dir)
+    {
+        if ((dir != null) && Files.isDirectory(dir)) {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                ImmutableList.Builder<Path> builder = ImmutableList.builder();
+                for (Path file : stream) {
+                    builder.add(file);
+                }
+
+                return builder.build();
+            }
+            catch (IOException | DirectoryIteratorException x) {
+                log.warn(x, "Warning.");
+                throw Throwables.propagate(x);
             }
         }
         return ImmutableList.of();

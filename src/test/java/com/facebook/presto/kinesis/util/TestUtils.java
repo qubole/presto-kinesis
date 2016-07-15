@@ -13,49 +13,138 @@
  */
 package com.facebook.presto.kinesis.util;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Map;
-import java.util.Properties;
+import java.util.function.Supplier;
 
+import com.facebook.presto.kinesis.KinesisClientProvider;
+import com.facebook.presto.kinesis.KinesisConnector;
 import com.facebook.presto.kinesis.KinesisPlugin;
 import com.facebook.presto.kinesis.KinesisStreamDescription;
+import com.facebook.presto.kinesis.KinesisStreamFieldDescription;
+import com.facebook.presto.kinesis.KinesisStreamFieldGroup;
+import com.facebook.presto.kinesis.KinesisTableDescriptionSupplier;
+import com.facebook.presto.metadata.InMemoryNodeManager;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.testing.QueryRunner;
-import com.google.common.base.Joiner;
-import com.google.common.base.Suppliers;
+import com.facebook.presto.type.TypeRegistry;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 
+import static java.util.Objects.requireNonNull;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
+/**
+ * Utilities to help create needed objects to make unit testing possible.
+ */
 public class TestUtils
 {
+    /** Use this in POM to avoid providing credentials there (blank is OK for the value but can't be blank in POM). */
+    public static final String NONE_KEY = "NONE";
+
     private TestUtils() {}
 
-    public static int findUnusedPort()
-            throws IOException
-    {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-    }
-
-    public static Properties toProperties(Map<String, String> map)
-    {
-        Properties properties = new Properties();
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            properties.setProperty(entry.getKey(), entry.getValue());
-        }
-        return properties;
-    }
-
-    public static void installKinesisPlugin(EmbeddedKinesisStream embeddedKinesisStream, QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions, String accessKey, String secretKey)
+    /**
+     * Create the plug in instance with other dependencies setup.
+     *
+     * This is done separately so that the injector can be pulled out to get at
+     * underlying support classes to test them independently.
+     *
+     * @return
+     */
+    public static KinesisPlugin createPluginInstance()
     {
         KinesisPlugin kinesisPlugin = new KinesisPlugin();
-        kinesisPlugin.setTableDescriptionSupplier(Suppliers.ofInstance(streamDescriptions));
+
+        // Normally done by plug in manager, handle manually here
+        kinesisPlugin.setTypeManager(new TypeRegistry());
+        kinesisPlugin.setNodeManager(new InMemoryNodeManager());
+
+        return kinesisPlugin;
+    }
+
+    /**
+     * Build a connector instance from the plug in, supplying the given properties.
+     *
+     * This can build a connector with the mock client which is normally done in testing.
+     * The plug in is created first with createPluginInstance.
+     *
+     * @param plugin
+     * @param properties
+     * @param withMockClient
+     * @return
+     */
+    public static KinesisConnector createConnector(KinesisPlugin plugin, Map<String, String> properties, boolean withMockClient)
+    {
+        requireNonNull(plugin, "Plugin instance should not be null");
+        requireNonNull(properties, "Properties map should not be null (can be empty)");
+
+        if (withMockClient) {
+            plugin.setAltProviderClass(KinesisTestClientManager.class);
+        }
+
+        ConnectorFactory factory = plugin.getServices(ConnectorFactory.class).get(0);
+        assertNotNull(factory);
+
+        Connector connector = factory.create("kinesis", properties);
+        assertTrue(connector instanceof KinesisConnector);
+        return (KinesisConnector) connector;
+    }
+
+    /**
+     * Install the plugin into the given query runner, using the mock client and the given table descriptions.
+     *
+     * The plug in is returned so that the injector can be accessed and other setup items tested.
+     *
+     * @param queryRunner
+     * @param streamDescriptions
+     * @return
+     */
+    public static KinesisPlugin installKinesisPlugin(QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions)
+    {
+        KinesisPlugin kinesisPlugin = createPluginInstance();
+        // Note: function literal with provided descriptions instead of KinesisTableDescriptionSupplier:
+        kinesisPlugin.setTableDescriptionSupplier(() -> streamDescriptions);
+        kinesisPlugin.setAltProviderClass(KinesisTestClientManager.class);
+
         queryRunner.installPlugin(kinesisPlugin);
 
         Map<String, String> kinesisConfig = ImmutableMap.of(
-                    "kinesis.table-names", Joiner.on(",").join(streamDescriptions.keySet()),
+                "kinesis.default-schema", "default",
+                "kinesis.access-key", "",
+                "kinesis.secret-key", "");
+        queryRunner.createCatalog("kinesis", "kinesis", kinesisConfig);
+
+        return kinesisPlugin;
+    }
+
+    /**
+     * Install the plug in into the given query runner, using normal setup but with the given table descriptions.
+     *
+     * Note that this uses the actual client and will incur charges from AWS when run.  Mainly for full
+     * integration tests.
+     *
+     * @param queryRunner
+     * @param streamDescriptions
+     * @param accessKey
+     * @param secretKey
+     */
+    public static void installKinesisPlugin(QueryRunner queryRunner, Map<SchemaTableName, KinesisStreamDescription> streamDescriptions, String accessKey, String secretKey)
+    {
+        KinesisPlugin kinesisPlugin = createPluginInstance();
+        // Note: function literal with provided descriptions instead of KinesisTableDescriptionSupplier:
+        kinesisPlugin.setTableDescriptionSupplier(() -> streamDescriptions);
+        queryRunner.installPlugin(kinesisPlugin);
+
+        Map<String, String> kinesisConfig = ImmutableMap.of(
                     "kinesis.default-schema", "default",
                     "kinesis.access-key", accessKey,
                     "kinesis.secret-key", secretKey);
@@ -67,5 +156,62 @@ public class TestUtils
         return new AbstractMap.SimpleImmutableEntry<>(
                 schemaTableName,
                 new KinesisStreamDescription(schemaTableName.getTableName(), schemaTableName.getSchemaName(), streamName, null));
+    }
+
+    public static Map.Entry<SchemaTableName, KinesisStreamDescription> createSimpleJsonStreamDescription(String streamName, SchemaTableName schemaTableName)
+    {
+        // Format: {"id" : 1324, "name" : "some string"}
+        ArrayList<KinesisStreamFieldDescription> fieldList = new ArrayList<KinesisStreamFieldDescription>();
+        fieldList.add(new KinesisStreamFieldDescription("id", BigintType.BIGINT, "id", "comment", null, null, false));
+        fieldList.add(new KinesisStreamFieldDescription("name", VarcharType.VARCHAR, "name", "comment", null, null, false));
+        KinesisStreamFieldGroup grp = new KinesisStreamFieldGroup("json", fieldList);
+
+        KinesisStreamDescription desc = new KinesisStreamDescription(schemaTableName.getTableName(), schemaTableName.getSchemaName(), streamName, grp);
+        return new AbstractMap.SimpleImmutableEntry<>(schemaTableName, desc);
+    }
+
+    /**
+     * Filter out cases where we don't want to explicitly provide credentials and follow the default setup.
+     *
+     * @param awsValue
+     * @return
+     */
+    public static String noneToBlank(String awsValue)
+    {
+        if (awsValue.equals(NONE_KEY)) {
+            return "";
+        }
+        else {
+            return awsValue;
+        }
+    }
+
+    /**
+     * Convenience method to get the table description supplier.
+     *
+     * @param inj
+     * @return
+     */
+    public static KinesisTableDescriptionSupplier getTableDescSupplier(Injector inj)
+    {
+        requireNonNull(inj, "Injector is missing in getTableDescSupplier");
+        Supplier<Map<SchemaTableName, KinesisStreamDescription>> supplier =
+                inj.getInstance(Key.get(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}));
+        requireNonNull(inj, "Injector cannot find any table description supplier");
+        return (KinesisTableDescriptionSupplier) supplier;
+    }
+
+    /**
+     * Convenience method to get the KinesisTestClientManager
+     *
+     * @param inj
+     * @return
+     */
+    public static KinesisTestClientManager getTestClientManager(Injector inj)
+    {
+        requireNonNull(inj, "Injector is missing in getTestClientManager");
+        KinesisClientProvider prov = inj.getInstance(KinesisClientProvider.class);
+        assertTrue(prov instanceof KinesisTestClientManager);
+        return (KinesisTestClientManager) prov;
     }
 }

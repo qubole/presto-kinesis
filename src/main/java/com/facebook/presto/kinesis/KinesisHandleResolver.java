@@ -14,66 +14,29 @@
 package com.facebook.presto.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import javax.inject.Inject;
 
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorHandleResolver;
-import com.facebook.presto.spi.ConnectorIndexHandle;
-import com.facebook.presto.spi.ConnectorInsertTableHandle;
-import com.facebook.presto.spi.ConnectorOutputTableHandle;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorTableHandle;
+import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+
 import com.google.inject.name.Named;
 
+// TODO note: made constructor public for testing purposes
 public class KinesisHandleResolver
         implements ConnectorHandleResolver
 {
     private final String connectorId;
 
     @Inject
-    KinesisHandleResolver(@Named("connectorId") String connectorId,
-            KinesisConnectorConfig kinesisConnectorConfig)
+    public KinesisHandleResolver(@Named("connectorId") String connectorId)
     {
-        this.connectorId = checkNotNull(connectorId, "connectorId is null");
-        checkNotNull(kinesisConnectorConfig, "kinesisConfig is null");
-    }
-
-    @Override
-    public boolean canHandle(ConnectorTableHandle tableHandle)
-    {
-        return tableHandle != null && tableHandle instanceof KinesisTableHandle && connectorId.equals(((KinesisTableHandle) tableHandle).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ColumnHandle columnHandle)
-    {
-        return columnHandle != null && columnHandle instanceof KinesisColumnHandle && connectorId.equals(((KinesisColumnHandle) columnHandle).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ConnectorSplit split)
-    {
-        return split != null && split instanceof KinesisSplit && connectorId.equals(((KinesisSplit) split).getConnectorId());
-    }
-
-    @Override
-    public boolean canHandle(ConnectorIndexHandle indexHandle)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean canHandle(ConnectorOutputTableHandle tableHandle)
-    {
-        return false;
-    }
-
-    @Override
-    public boolean canHandle(ConnectorInsertTableHandle tableHandle)
-    {
-        return false;
+        this.connectorId = requireNonNull(connectorId, "connectorId is null");
     }
 
     @Override
@@ -83,15 +46,21 @@ public class KinesisHandleResolver
     }
 
     @Override
-    public Class<? extends ColumnHandle> getColumnHandleClass()
+    public Class<? extends ConnectorTableLayoutHandle> getTableLayoutHandleClass()
     {
-        return KinesisColumnHandle.class;
+        return KinesisTableLayoutHandle.class;
     }
 
     @Override
-    public Class<? extends ConnectorIndexHandle> getIndexHandleClass()
+    public Class<? extends ConnectorTransactionHandle> getTransactionHandleClass()
     {
-        throw new UnsupportedOperationException();
+        return KinesisTransactionHandle.class;
+    }
+
+    @Override
+    public Class<? extends ColumnHandle> getColumnHandleClass()
+    {
+        return KinesisColumnHandle.class;
     }
 
     @Override
@@ -100,21 +69,9 @@ public class KinesisHandleResolver
         return KinesisSplit.class;
     }
 
-    @Override
-    public Class<? extends ConnectorOutputTableHandle> getOutputTableHandleClass()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Class<? extends ConnectorInsertTableHandle> getInsertTableHandleClass()
-    {
-        throw new UnsupportedOperationException();
-    }
-
     KinesisTableHandle convertTableHandle(ConnectorTableHandle tableHandle)
     {
-        checkNotNull(tableHandle, "tableHandle is null");
+        requireNonNull(tableHandle, "tableHandle is null");
         checkArgument(tableHandle instanceof KinesisTableHandle, "tableHandle is not an instance of KinesisTableHandle");
         KinesisTableHandle kinesisTableHandle = (KinesisTableHandle) tableHandle;
         checkArgument(kinesisTableHandle.getConnectorId().equals(connectorId), "tableHandle is not for this connector");
@@ -124,7 +81,7 @@ public class KinesisHandleResolver
 
     KinesisColumnHandle convertColumnHandle(ColumnHandle columnHandle)
     {
-        checkNotNull(columnHandle, "columnHandle is null");
+        requireNonNull(columnHandle, "columnHandle is null");
         checkArgument(columnHandle instanceof KinesisColumnHandle, "columnHandle is not an instance of KinesisColumnHandle");
         KinesisColumnHandle kinesisColumnHandle = (KinesisColumnHandle) columnHandle;
         checkArgument(kinesisColumnHandle.getConnectorId().equals(connectorId), "columnHandle is not for this connector");
@@ -133,10 +90,19 @@ public class KinesisHandleResolver
 
     KinesisSplit convertSplit(ConnectorSplit split)
     {
-        checkNotNull(split, "split is null");
+        requireNonNull(split, "split is null");
         checkArgument(split instanceof KinesisSplit, "split is not an instance of KinesisSplit");
         KinesisSplit kinesisSplit = (KinesisSplit) split;
         checkArgument(kinesisSplit.getConnectorId().equals(connectorId), "split is not for this connector");
         return kinesisSplit;
+    }
+
+    KinesisTableLayoutHandle convertLayout(ConnectorTableLayoutHandle layout)
+    {
+        requireNonNull(layout, "layout is null");
+        checkArgument(layout instanceof KinesisTableLayoutHandle, "layout is not an instance of KinesisTableLayoutHandle");
+        KinesisTableLayoutHandle kinesisLayout = (KinesisTableLayoutHandle) layout;
+        checkArgument(kinesisLayout.getConnectorId().equals(connectorId), "split is not for this connector");
+        return kinesisLayout;
     }
 }

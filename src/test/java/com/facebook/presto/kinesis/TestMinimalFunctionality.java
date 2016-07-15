@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.kinesis;
 
+import com.facebook.presto.execution.QueryId;
+import com.facebook.presto.spi.security.Identity;
 import io.airlift.log.Logger;
 
 import java.nio.ByteBuffer;
@@ -33,7 +35,8 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.facebook.presto.Session;
 import com.facebook.presto.kinesis.util.EmbeddedKinesisStream;
 import com.facebook.presto.kinesis.util.TestUtils;
-import com.facebook.presto.metadata.QualifiedTableName;
+import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.BigintType;
@@ -47,13 +50,21 @@ import static org.testng.Assert.assertTrue;
 import static com.facebook.presto.kinesis.util.TestUtils.createEmptyStreamDescription;
 import static org.testng.Assert.assertEquals;
 
+/**
+ * Note: this is an integration test that connects to AWS Kinesis.
+ *
+ * Only run if you have an account setup where you can create streams and put/get records.
+ * You may incur AWS charges if you run this test.  You probably want to setup an IAM
+ * user for your CI server to use.
+ */
 @Test(singleThreaded = true)
 public class TestMinimalFunctionality
 {
     private static final Logger log = Logger.get(TestMinimalFunctionality.class);
 
-        private static final Session SESSION = Session.builder()
-            .setUser("user")
+    private static final Session SESSION = Session.builder(new SessionPropertyManager())
+            .setIdentity(new Identity("user", Optional.empty()))
+            .setQueryId(QueryId.valueOf("test.query.id.123"))
             .setSource("source")
             .setCatalog("kinesis")
             .setSchema("default")
@@ -73,7 +84,7 @@ public class TestMinimalFunctionality
     public void start(String accessKey, String secretKey)
         throws Exception
     {
-        embeddedKinesisStream = new EmbeddedKinesisStream(accessKey, secretKey);
+        embeddedKinesisStream = new EmbeddedKinesisStream(TestUtils.noneToBlank(accessKey), TestUtils.noneToBlank(secretKey));
     }
 
     @AfterClass
@@ -94,10 +105,10 @@ public class TestMinimalFunctionality
         streamName = "test_" + UUID.randomUUID().toString().replaceAll("-", "_");
         embeddedKinesisStream.createStream(2, streamName);
         this.queryRunner = new StandaloneQueryRunner(SESSION);
-        TestUtils.installKinesisPlugin(embeddedKinesisStream, queryRunner,
+        TestUtils.installKinesisPlugin(queryRunner,
                 ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
                 put(createEmptyStreamDescription(streamName, new SchemaTableName("default", streamName))).build(),
-                accessKey, secretKey);
+                TestUtils.noneToBlank(accessKey), TestUtils.noneToBlank(secretKey));
     }
 
     private void createMessages(String streamName, int count)
@@ -121,7 +132,8 @@ public class TestMinimalFunctionality
     public void testStreamExists()
             throws Exception
     {
-        QualifiedTableName name = new QualifiedTableName("kinesis", "default", streamName);
+        // TODO: Was QualifiedTableName, is this OK:
+        QualifiedObjectName name = new QualifiedObjectName("kinesis", "default", streamName);
         Optional<TableHandle> handle = queryRunner.getServer().getMetadata().getTableHandle(SESSION, name);
         assertTrue(handle.isPresent());
     }

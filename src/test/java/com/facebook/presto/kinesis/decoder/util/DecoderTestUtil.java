@@ -27,7 +27,7 @@ public class DecoderTestUtil
 {
     private DecoderTestUtil() {}
 
-    private static KinesisFieldValueProvider findValueProvider(Set<KinesisFieldValueProvider> providers, KinesisColumnHandle handle)
+    public static KinesisFieldValueProvider findValueProvider(Set<KinesisFieldValueProvider> providers, KinesisColumnHandle handle)
     {
         for (KinesisFieldValueProvider provider : providers) {
             if (provider.accept(handle)) {

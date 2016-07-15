@@ -25,7 +25,8 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import com.google.common.base.Objects;
+import org.weakref.jmx.internal.guava.base.Objects;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;

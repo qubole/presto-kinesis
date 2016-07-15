@@ -15,11 +15,13 @@ package com.facebook.presto.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 
 import java.nio.ByteBuffer;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -33,8 +35,10 @@ import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
+
 import com.facebook.presto.kinesis.decoder.KinesisFieldDecoder;
 import com.facebook.presto.kinesis.decoder.KinesisRowDecoder;
+import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.type.Type;
@@ -44,12 +48,16 @@ import com.google.common.collect.ImmutableSet;
 public class KinesisRecordSet
         implements RecordSet
 {
+    /** Indicates how close to current we want to be before stopping the fetch of records in a query. */
+    public static final int MILLIS_BEHIND_LIMIT = 10000;
+
     private static final Logger log = Logger.get(KinesisRecordSet.class);
 
     private static final byte [] EMPTY_BYTE_ARRAY = new byte [0];
 
     private final KinesisSplit split;
-    private final KinesisClientManager clientManager;
+    private final ConnectorSession session;
+    private final KinesisClientProvider clientManager;
     private final KinesisConnectorConfig kinesisConnectorConfig;
 
     private final KinesisRowDecoder messageDecoder;
@@ -59,6 +67,7 @@ public class KinesisRecordSet
     private final List<Type> columnTypes;
 
     private final int batchSize;
+    private final int maxBatches;
     private final int fetchAttempts;
     private final long sleepTime;
 
@@ -70,13 +79,15 @@ public class KinesisRecordSet
     private final Set<KinesisFieldValueProvider> globalInternalFieldValueProviders;
 
     KinesisRecordSet(KinesisSplit split,
-            KinesisClientManager clientManager,
+            ConnectorSession session,
+            KinesisClientProvider clientManager,
             List<KinesisColumnHandle> columnHandles,
             KinesisRowDecoder messageDecoder,
             Map<KinesisColumnHandle, KinesisFieldDecoder<?>> messageFieldDecoders,
             KinesisConnectorConfig kinesisConnectorConfig)
     {
         this.split = checkNotNull(split, "split is null");
+        this.session = checkNotNull(session, "session is null");
         this.kinesisConnectorConfig = checkNotNull(kinesisConnectorConfig, "KinesisConnectorConfig is null");
 
         this.globalInternalFieldValueProviders = ImmutableSet.of(
@@ -98,7 +109,10 @@ public class KinesisRecordSet
 
         this.columnTypes = typeBuilder.build();
 
-        this.batchSize = kinesisConnectorConfig.getBatchSize();
+        // Note: these default to what is in the configuration if not given in the session
+        this.batchSize = SessionVariables.getBatchSize(this.session);
+        this.maxBatches = SessionVariables.getMaxBatches(this.session);
+
         this.fetchAttempts = kinesisConnectorConfig.getFetchAttempts();
         this.sleepTime = kinesisConnectorConfig.getSleepTime().toMillis();
 
@@ -120,8 +134,8 @@ public class KinesisRecordSet
                 String dynamoDBTable = split.getStreamName();
                 int curIterationNumber = kinesisConnectorConfig.getIterationNumber();
 
-                String sessionIterationNo = KinesisTableHandle.getSessionProperty(split.getSession(), "iteration_number");
-                String sessionLogicalName = KinesisTableHandle.getSessionProperty(split.getSession(), "checkpoint_logical_name");
+                String sessionIterationNo = SessionVariables.getSessionProperty(this.session, SessionVariables.ITERATION_NUMBER);
+                String sessionLogicalName = SessionVariables.getSessionProperty(this.session, SessionVariables.CHECKPOINT_LOGICAL_NAME);
 
                 if (sessionIterationNo != null) {
                     curIterationNumber = Integer.parseInt(sessionIterationNo);
@@ -160,8 +174,14 @@ public class KinesisRecordSet
     public class KinesisRecordCursor
             implements RecordCursor
     {
-        private long totalBytes;
-        private long totalMessages;
+        // TODO: total bytes here only includes records we iterate through, not total read from Kinesis.
+        // This may not be an issue, but if total vs. completed is an important signal to Presto then
+        // the implementation below could be a problem.  Need to investigate.
+        private long batchesRead = 0;
+        private long messagesRead = 0;
+        private long totalBytes = 0;
+        private long totalMessages = 0;
+        private long lastReadTime = 0;
 
         private  String shardIterator;
         private KinesisFieldValueProvider[] fieldValueProviders;
@@ -195,67 +215,92 @@ public class KinesisRecordSet
             return columnHandles.get(field).getType();
         }
 
+        /**
+         * Advances the cursor by one position, retrieving more records from Kinesis if needed.
+         *
+         * We retrieve records from Kinesis in batches, using the getRecordsRequest.  After a
+         * getRecordsRequest we keep iterating through that list of records until we run out.  Then
+         * we will get another batch unless we've hit the limit or have caught up.
+         *
+         * @return
+         */
         @Override
         public boolean advanceNextPosition()
         {
-            if (shardIterator == null) {
-                getIterator();
-                if (getKinesisRecords() == false) {
-                    log.debug("No more records in shard to read.");
-                    return false;
-                }
+            if (shardIterator == null && getRecordsRequest == null) {
+                getIterator(); // first shard iterator
+                log.info("Starting read.  Retrieved first shard iterator from AWS Kinesis.");
             }
 
-            while (true) {
-                log.debug("Reading data from shardIterator %s", shardIterator);
-                while (listIterator.hasNext()) {
-                    return nextRow();
-                }
-
-                shardIterator = getRecordsResult.getNextShardIterator();
-
-                if (shardIterator == null) {
-                    log.debug("Shard closed");
-                    return false;
-                }
-                else {
-                    if (getKinesisRecords() == false) {
-                        log.debug("No more records in shard to read.");
-                        return false;
-                    }
-                }
+            if (getRecordsRequest == null || (!listIterator.hasNext() && shouldGetMoreRecords())) {
+                getKinesisRecords();
             }
-        }
 
-        private boolean getKinesisRecords()
-                throws ResourceNotFoundException
-        {
-            getRecordsRequest = new GetRecordsRequest();
-            getRecordsRequest.setShardIterator(shardIterator);
-            getRecordsRequest.setLimit(batchSize);
-
-            getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
-            int iterationsLeft = fetchAttempts;
-            do {
-                kinesisRecords = getRecordsResult.getRecords();
-                if (!kinesisRecords.isEmpty()) {
-                    break;
-                }
-                try {
-                    Thread.sleep(sleepTime);
-                }
-                catch (InterruptedException e) {
-                    // it's fine to fall out early
-                }
-                iterationsLeft--;
-            } while (iterationsLeft > 0);
-            if (kinesisRecords.isEmpty()) {
+            if (listIterator.hasNext()) {
+                return nextRow();
+            }
+            else {
+                log.info("Read all of the records from the shard:  %d batches and %d messages and %d total bytes.", batchesRead, totalMessages, totalBytes);
                 return false;
             }
-            listIterator = kinesisRecords.iterator();
-            return true;
         }
 
+        /** Determine whether or not to retrieve another batch of records from Kinesis. */
+        private boolean shouldGetMoreRecords()
+        {
+            return shardIterator != null && batchesRead < maxBatches &&
+                    getMillisBehindLatest() > MILLIS_BEHIND_LIMIT;
+        }
+
+        /**
+         * Retrieves the next batch of records from Kinesis using the shard iterator.
+         *
+         * Most of the time this results in one getRecords call.  However we allow for
+         * a call to return an empty list, and we'll try again if we are far enough
+         * away from the latest record.
+         */
+        private void getKinesisRecords()
+                throws ResourceNotFoundException
+        {
+            // Normally this loop will execute once, but we have to allow for the odd Kinesis
+            // behavior, per the docs:
+            // A single call to getRecords might return an empty record list, even when the shard contains
+            // more records at later sequence numbers
+            boolean fetchedRecords = false;
+            int attempts = 0;
+            while (!fetchedRecords && attempts < fetchAttempts) {
+                long now = System.currentTimeMillis();
+                if (now - lastReadTime <= sleepTime) {
+                    try {
+                        Thread.sleep(now - lastReadTime);
+                    }
+                    catch (InterruptedException e) {
+                        log.error("Sleep interrupted.", e);
+                    }
+                }
+                getRecordsRequest = new GetRecordsRequest();
+                getRecordsRequest.setShardIterator(shardIterator);
+                getRecordsRequest.setLimit(batchSize);
+
+                getRecordsResult = clientManager.getClient().getRecords(getRecordsRequest);
+                lastReadTime = System.currentTimeMillis();
+
+                shardIterator = getRecordsResult.getNextShardIterator();
+                kinesisRecords = getRecordsResult.getRecords();
+                if (kinesisConnectorConfig.isLogBatches()) {
+                    log.info("Fetched %d records from Kinesis.  MillisBehindLatest=%d", kinesisRecords.size(), getRecordsResult.getMillisBehindLatest());
+                }
+
+                fetchedRecords = (kinesisRecords.size() > 0 || getMillisBehindLatest() <= MILLIS_BEHIND_LIMIT);
+                attempts++;
+            }
+
+            listIterator = kinesisRecords.iterator();
+            batchesRead++;
+            messagesRead += kinesisRecords.size();
+        }
+
+        /** Working from the internal list, advance to the next row and decode it. */
         private boolean nextRow()
         {
             Record currentRecord = listIterator.next();
@@ -275,11 +320,13 @@ public class KinesisRecordSet
 
             Set<KinesisFieldValueProvider> fieldValueProviders = new HashSet<>();
 
+            // Note: older version of SDK used in Presto doesn't support getApproximateArrivalTimestamp so can't get message timestamp!
             fieldValueProviders.addAll(globalInternalFieldValueProviders);
             fieldValueProviders.add(KinesisInternalFieldDescription.SEGMENT_COUNT_FIELD.forLongValue(totalMessages));
             fieldValueProviders.add(KinesisInternalFieldDescription.SHARD_SEQUENCE_ID_FIELD.forByteValue(currentRecord.getSequenceNumber().getBytes()));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_FIELD.forByteValue(messageData));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_LENGTH_FIELD.forLongValue(messageData.length));
+            fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_TIMESTAMP.forLongValue(currentRecord.getApproximateArrivalTimestamp().getTime()));
             fieldValueProviders.add(KinesisInternalFieldDescription.MESSAGE_VALID_FIELD.forBooleanValue(messageDecoder.decodeRow(messageData, fieldValueProviders, columnHandles, messageFieldDecoders)));
             fieldValueProviders.add(KinesisInternalFieldDescription.PARTITION_KEY_FIELD.forByteValue(partitionKey.getBytes()));
 
@@ -302,13 +349,24 @@ public class KinesisRecordSet
             return true;
         }
 
+        /** Protect against possibly null values if this isn't set (not expected) */
+        private long getMillisBehindLatest()
+        {
+            if (getRecordsResult != null && getRecordsResult.getMillisBehindLatest() != null) {
+                return getRecordsResult.getMillisBehindLatest();
+            }
+            else {
+                return MILLIS_BEHIND_LIMIT + 1;
+            }
+        }
+
         @Override
         public boolean getBoolean(int field)
         {
             checkArgument(field < columnHandles.size(), "Invalid field index");
 
             checkFieldType(field, boolean.class);
-            return isNull(field) ? false : fieldValueProviders[field].getBoolean();
+            return !isNull(field) && fieldValueProviders[field].getBoolean();
         }
 
         @Override
@@ -339,6 +397,13 @@ public class KinesisRecordSet
         }
 
         @Override
+        public Object getObject(int i)
+        {
+            // TODO: review if we want to support this
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public boolean isNull(int field)
         {
             checkArgument(field < columnHandles.size(), "Invalid field index");
@@ -349,7 +414,8 @@ public class KinesisRecordSet
         @Override
         public void close()
         {
-            log.info("Read complete");
+            log.info("Closing cursor - read complete.  Total read: %d batches %d messages, processed: %d messages and %d bytes.",
+                    batchesRead, messagesRead, totalMessages, totalBytes);
             if (checkpointEnabled && lastReadSeqNo != null) {
                 kinesisShardCheckpointer.checkpoint(lastReadSeqNo);
             }
@@ -367,8 +433,27 @@ public class KinesisRecordSet
             GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest();
             getShardIteratorRequest.setStreamName(split.getStreamName());
             getShardIteratorRequest.setShardId(split.getShardId());
+
+            // Explanation: when we have a sequence number from a prior read or checkpoint, always use it.
+            // Otherwise, decide if starting at a timestamp or the trim horizon based on configuration.
+            // If starting at a timestamp, sue the session variable ITER_START_TIMESTAMP when given, otherwise
+            // fallback on starting at ITER_OFFSET_SECONDS from timestamp.
             if (lastReadSeqNo == null) {
-                getShardIteratorRequest.setShardIteratorType("TRIM_HORIZON");
+                // Important: shard iterator type AT_TIMESTAMP requires 1.11.x or above of the AWS SDK.
+                if (SessionVariables.getIterFromTimestamp(session)) {
+                    getShardIteratorRequest.setShardIteratorType("AT_TIMESTAMP");
+                    long iterStartTs = SessionVariables.getIterStartTimestamp(session);
+                    if (iterStartTs == 0) {
+                        long startTs = System.currentTimeMillis() - (SessionVariables.getIterOffsetSeconds(session) * 1000);
+                        getShardIteratorRequest.setTimestamp(new Date(startTs));
+                    }
+                    else {
+                        getShardIteratorRequest.setTimestamp(new Date(iterStartTs));
+                    }
+                }
+                else {
+                    getShardIteratorRequest.setShardIteratorType("TRIM_HORIZON");
+                }
             }
             else {
                 getShardIteratorRequest.setShardIteratorType("AFTER_SEQUENCE_NUMBER");
