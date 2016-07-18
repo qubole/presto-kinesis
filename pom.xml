@@ -2,14 +2,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
-    <parent>
-        <groupId>com.facebook.presto</groupId>
-        <artifactId>presto-root</artifactId>
-        <!-- Current working version of presto.  Original: 0.105  SF: 0.130  Latest: 0.149 -->
-        <version>0.149</version>
-    </parent>
-
     <!-- Notes on AWS versions and related dependencies:
          We need a later version of AWS to take advantage of some new APIs, including starting a shard iterator from
          a timestamp.  Only available in 1.11.x, the latest version.  The only issue this causes is with the jackson
@@ -23,34 +15,81 @@
     <properties>
         <dep.aws-sdk.version>1.11.12</dep.aws-sdk.version>
         <dep.kinesis-client.version>1.6.3</dep.kinesis-client.version>
+        <presto.version>0.149</presto.version>
+        <jodatime.version>2.8.1</jodatime.version>
+        <opencsv.version>2.3</opencsv.version>
+        <jmxutils.version>1.19</jmxutils.version>
+        <com.google.version>4.0</com.google.version>
+        <com.fasterxml.version>2.4.4</com.fasterxml.version>
+        <findbugs.version>2.0.3</findbugs.version>
+        <slice.version>0.22</slice.version>
+        <airlift.version>0.128</airlift.version>
+        <javax.version>1</javax.version>
+        <guava.version>18.0</guava.version>
+        <validation.version>1.1.0.Final</validation.version>
+        <additionalparam>-Xdoclint:none</additionalparam>
     </properties>
 
-    <artifactId>presto-kinesis</artifactId>
+    <groupId>com.qubole.presto</groupId>
+    <artifactId>kinesis</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
     <description>Presto - Kinesis Connector</description>
-    <packaging>presto-plugin</packaging>
+    <name>Presto-Kinesis</name>
+    <url>https://github.com/qubole/presto-kinesis</url>
+
+    <scm>
+        <url>https://github.com/qubole/presto-kinesis</url>
+        <connection>scm:git:git://github.com/qubole/presto-kinesis</connection>
+        <developerConnection>scm:git:git@github.com:qubole/presto-kinesis.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://github.com/qubole/presto-kinesis/blob/master/src/license/LICENSE-HEADER.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>qubole</id>
+            <organization>Qubole Inc.</organization>
+            <organizationUrl>http://www.qubole.com</organizationUrl>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
 
     <dependencies>
         <dependency>
-            <groupId>org.weakref</groupId>
-            <artifactId>jmxutils</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-spi</artifactId>
+            <version>${presto.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-main</artifactId>
+            <version>${presto.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.weakref</groupId>
+            <artifactId>jmxutils</artifactId>
+            <version>${jmxutils.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
+            <version>${airlift.version}</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -75,6 +114,7 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>json</artifactId>
+            <version>${airlift.version}</version>
             <scope>provided</scope>
             <exclusions>
                 <exclusion>
@@ -88,88 +128,96 @@
         <dependency>
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
+            <version>${jodatime.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>log</artifactId>
+            <version>${airlift.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>configuration</artifactId>
+            <version>${airlift.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>slice</artifactId>
+            <version>${slice.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>units</artifactId>
+            <version>${airlift.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
+            <version>${com.google.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.inject.extensions</groupId>
             <artifactId>guice-multibindings</artifactId>
+            <version>${com.google.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
+            <version>${com.fasterxml.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
+            <version>${com.fasterxml.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
+            <version>${javax.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>javax.validation</groupId>
             <artifactId>validation-api</artifactId>
+            <version>${validation.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
+            <version>${findbugs.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>net.sf.opencsv</groupId>
             <artifactId>opencsv</artifactId>
+            <version>${opencsv.version}</version>
         </dependency>
 
         <dependency>
@@ -262,6 +310,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
+            <version>${dep.aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>joda-time</groupId>
@@ -288,6 +337,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
+            <version>${dep.aws-sdk.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>joda-time</groupId>
@@ -316,43 +366,14 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
+            <version>6.9.8</version>
             <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.airlift</groupId>
-            <artifactId>testing</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-tpch</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.facebook.presto</groupId>
-            <artifactId>presto-client</artifactId>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>joda-time</groupId>
-                    <artifactId>joda-time</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-tests</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.airlift.tpch</groupId>
-            <artifactId>tpch</artifactId>
+            <version>${presto.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -393,8 +414,6 @@
                 </configuration>
             </plugin>
 
-            <!-- TODO: not clear this is needed.  Most other plugins just create a zip. -->
-            <!--
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <version>2.5.3</version>
@@ -411,8 +430,17 @@
                     </execution>
                 </executions>
             </plugin>
-            -->
-         </plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
@@ -431,5 +459,75 @@
             </build>
         </profile>
 
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>2.4</version>
+                        <executions>
+                            <execution>
+                                <id>create-sources-jar</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.5</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>2.10.1</version>
+                        <executions>
+                            <execution>
+                                <id>create-javadoc-jar</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>1.6.3</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+        </repository>
+    </distributionManagement>
+
 </project>
