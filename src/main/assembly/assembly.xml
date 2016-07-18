@@ -15,11 +15,6 @@ http://maven.apache.org/xsd/assembly-1.1.2.xsd">
       <scope>runtime</scope>
       <outputDirectory>/presto-kinesis</outputDirectory>
       <excludes>
-	<exclude>junit:junit</exclude>
-	<exclude>commons-lang:commons-lang</exclude>
-	<exclude>commons-logging:commons-logging</exclude>
-	<exclude>commons-cli:commons-cli</exclude>
-	<exclude>commons-cli:commons-cli</exclude>
 	<exclude>io.airlift:*</exclude>
       </excludes>
     </dependencySet>
