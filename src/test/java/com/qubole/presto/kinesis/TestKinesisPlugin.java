@@ -13,17 +13,17 @@
  */
 package com.qubole.presto.kinesis;
 
-import java.util.List;
-
-import com.qubole.presto.kinesis.util.TestUtils;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorContext;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.google.common.collect.ImmutableMap;
+import com.qubole.presto.kinesis.util.TestUtils;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableMap;
+import java.util.List;
 
 import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static org.testng.Assert.assertEquals;
@@ -67,7 +67,7 @@ public class TestKinesisPlugin
                 .put("kinesis.hide-internal-columns", "false")
                 .put("kinesis.access-key", TestUtils.noneToBlank(awsAccessKey))
                 .put("kinesis.secret-key", TestUtils.noneToBlank(awsSecretKey))
-                .build());
+                .build(), new ConnectorContext() {});
         assertNotNull(c);
 
         // Verify that the key objects have been created on the connector

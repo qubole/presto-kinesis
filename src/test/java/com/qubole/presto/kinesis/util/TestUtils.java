@@ -13,11 +13,19 @@
  */
 package com.qubole.presto.kinesis.util;
 
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.function.Supplier;
-
+import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorContext;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.VarcharType;
+import com.facebook.presto.testing.QueryRunner;
+import com.facebook.presto.testing.TestingNodeManager;
+import com.facebook.presto.type.TypeRegistry;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import com.qubole.presto.kinesis.KinesisClientProvider;
 import com.qubole.presto.kinesis.KinesisConnector;
 import com.qubole.presto.kinesis.KinesisPlugin;
@@ -25,18 +33,11 @@ import com.qubole.presto.kinesis.KinesisStreamDescription;
 import com.qubole.presto.kinesis.KinesisStreamFieldDescription;
 import com.qubole.presto.kinesis.KinesisStreamFieldGroup;
 import com.qubole.presto.kinesis.KinesisTableDescriptionSupplier;
-import com.facebook.presto.metadata.InMemoryNodeManager;
-import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.VarcharType;
-import com.facebook.presto.testing.QueryRunner;
-import com.facebook.presto.type.TypeRegistry;
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.TypeLiteral;
+
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 import static org.testng.Assert.assertNotNull;
@@ -66,7 +67,7 @@ public class TestUtils
 
         // Normally done by plug in manager, handle manually here
         kinesisPlugin.setTypeManager(new TypeRegistry());
-        kinesisPlugin.setNodeManager(new InMemoryNodeManager());
+        kinesisPlugin.setNodeManager(new TestingNodeManager());
 
         return kinesisPlugin;
     }
@@ -94,7 +95,7 @@ public class TestUtils
         ConnectorFactory factory = plugin.getServices(ConnectorFactory.class).get(0);
         assertNotNull(factory);
 
-        Connector connector = factory.create("kinesis", properties);
+        Connector connector = factory.create("kinesis", properties, new ConnectorContext() {});
         assertTrue(connector instanceof KinesisConnector);
         return (KinesisConnector) connector;
     }

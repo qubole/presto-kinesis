@@ -15,6 +15,7 @@ package com.qubole.presto.kinesis;
 
 import com.facebook.presto.spi.ErrorCode;
 import com.facebook.presto.spi.ErrorCodeSupplier;
+import com.facebook.presto.spi.ErrorType;
 
 /**
  *  Kinesis connector specific error codes.
@@ -35,7 +36,7 @@ public enum KinesisErrorCode
 
     KinesisErrorCode(int code)
     {
-        errorCode = new ErrorCode(code + StartingErrorCode, name());
+        errorCode = new ErrorCode(code + StartingErrorCode, name(), ErrorType.INTERNAL_ERROR);
     }
 
     @Override

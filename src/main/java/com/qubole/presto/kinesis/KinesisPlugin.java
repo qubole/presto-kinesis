@@ -25,7 +25,6 @@ import com.google.inject.Injector;
 import io.airlift.log.Logger;
 
 import javax.inject.Inject;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +51,15 @@ public class KinesisPlugin
 
     private KinesisConnectorFactory factory;
 
-    @Override
+    private static ClassLoader getClassLoader()
+    {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = KinesisPlugin.class.getClassLoader();
+        }
+        return classLoader;
+    }
+
     public synchronized void setOptionalConfig(Map<String, String> optionalConfig)
     {
         this.optionalConfig = ImmutableMap.copyOf(requireNonNull(optionalConfig, "optionalConfig is null"));
@@ -74,6 +81,11 @@ public class KinesisPlugin
     }
 
     @Override
+    public Iterable<ConnectorFactory> getConnectorFactories()
+    {
+        return ImmutableList.of(new KinesisConnectorFactory(getClassLoader()));
+    }
+
     public synchronized <T> List<T> getServices(Class<T> type)
     {
         if (type == ConnectorFactory.class) {

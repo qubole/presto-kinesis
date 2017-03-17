@@ -13,31 +13,30 @@
  */
 package com.qubole.presto.kinesis;
 
-import static java.util.Objects.requireNonNull;
-
+import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.spi.ConnectorHandleResolver;
 import com.facebook.presto.spi.NodeManager;
+import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorContext;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.facebook.presto.spi.type.TypeManager;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
+import com.google.inject.name.Names;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 
 import java.util.Map;
 import java.util.Optional;
-
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.type.TypeManager;
 import java.util.function.Supplier;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.Binder;
-import com.google.inject.Injector;
-import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  *
@@ -50,6 +49,7 @@ public class KinesisConnectorFactory
     public static final String connectorName = "kinesis";
     private static final Logger log = Logger.get(KinesisConnectorFactory.class);
 
+    private final ClassLoader classLoader;
     private TypeManager typeManager;
     private NodeManager nodeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
@@ -59,6 +59,11 @@ public class KinesisConnectorFactory
     private KinesisHandleResolver handleResolver;
 
     private Injector injector;
+
+    KinesisConnectorFactory(ClassLoader classLoader)
+    {
+        this.classLoader = classLoader;
+    }
 
     KinesisConnectorFactory(TypeManager typeManager,
                             NodeManager nodeManager,
@@ -78,6 +83,7 @@ public class KinesisConnectorFactory
         // to the latest version of the AWS API, we need to turn this feature off.  This can be set
         // in jvm.properties but trying to make this more foolproof.
         System.setProperty("com.amazonaws.sdk.disableCbor", "true");
+        this.classLoader = null;
     }
 
     @Override
@@ -89,11 +95,11 @@ public class KinesisConnectorFactory
     @Override
     public ConnectorHandleResolver getHandleResolver()
     {
-        return this.handleResolver;
+        return new KinesisHandleResolver(connectorName);
     }
 
     @Override
-    public Connector create(String connectorId, Map<String, String> config)
+    public Connector create(String connectorId, Map<String, String> config, ConnectorContext context)
     {
         log.info("In connector factory create method.  Connector id: " + connectorId);
         requireNonNull(connectorId, "connectorId is null");
@@ -103,34 +109,30 @@ public class KinesisConnectorFactory
             Bootstrap app = new Bootstrap(
                     new JsonModule(),
                     new KinesisConnectorModule(),
-                    new Module()
-                    {
-                        @Override
-                        public void configure(Binder binder)
-                        {
-                            binder.bindConstant().annotatedWith(Names.named("connectorId")).to(connectorId);
-                            binder.bind(TypeManager.class).toInstance(typeManager);
-                            binder.bind(NodeManager.class).toInstance(nodeManager);
-                            // Note: moved creation from KinesisConnectorModule because connector manager accesses it earlier!
-                            binder.bind(KinesisHandleResolver.class).toInstance(handleResolver);
+                    binder -> {
+                        binder.bindConstant().annotatedWith(Names.named("connectorId")).to(connectorId);
+                        binder.bind(ConnectorId.class).toInstance(new ConnectorId(connectorId));
+                        binder.bind(TypeManager.class).toInstance(context.getTypeManager());
+                        binder.bind(NodeManager.class).toInstance(context.getNodeManager());
+                        // Note: moved creation from KinesisConnectorModule because connector manager accesses it earlier!
+                        binder.bind(KinesisHandleResolver.class).toInstance(new KinesisHandleResolver(connectorName));
 
-                            // Moved creation here from KinesisConnectorModule to make it easier to parameterize
-                            if (altProviderClass.isPresent()) {
-                                binder.bind(KinesisClientProvider.class).to(altProviderClass.get()).in(Scopes.SINGLETON);
-                            }
-                            else {
-                                binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
-                            }
+                        // Moved creation here from KinesisConnectorModule to make it easier to parameterize
+                        if (altProviderClass.isPresent()) {
+                            binder.bind(KinesisClientProvider.class).to(altProviderClass.get()).in(Scopes.SINGLETON);
+                        }
+                        else {
+                            binder.bind(KinesisClientProvider.class).to(KinesisClientManager.class).in(Scopes.SINGLETON);
+                        }
 
-                            if (tableDescriptionSupplier.isPresent()) {
-                                binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).toInstance(tableDescriptionSupplier.get());
-                            }
-                            else {
-                                binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).to(KinesisTableDescriptionSupplier.class).in(Scopes.SINGLETON);
-                            }
+                        if (tableDescriptionSupplier.isPresent()) {
+                            binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).toInstance(tableDescriptionSupplier.get());
+                        }
+                        else {
+                            binder.bind(new TypeLiteral<Supplier<Map<SchemaTableName, KinesisStreamDescription>>>() {}).to(KinesisTableDescriptionSupplier.class).in(Scopes.SINGLETON);
                         }
                     }
-                );
+            );
 
             this.injector = app.strictConfig()
                         .doNotInitializeLogging()
