@@ -60,19 +60,11 @@ public class KinesisConnectorFactory
 
     private Injector injector;
 
-    KinesisConnectorFactory(ClassLoader classLoader)
-    {
-        this.classLoader = classLoader;
-    }
-
-    KinesisConnectorFactory(TypeManager typeManager,
-                            NodeManager nodeManager,
-                            Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
+    KinesisConnectorFactory(ClassLoader classLoader, Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier,
                             Map<String, String> optionalConfig,
                             Optional<Class<? extends KinesisClientProvider>> altProviderClass)
     {
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
+        this.classLoader = classLoader;
         this.tableDescriptionSupplier = requireNonNull(tableDescriptionSupplier, "tableDescriptionSupplier is null");
         this.optionalConfig = requireNonNull(optionalConfig, "optionalConfig is null");
         this.altProviderClass = requireNonNull(altProviderClass, "altProviderClass is null");
@@ -83,7 +75,6 @@ public class KinesisConnectorFactory
         // to the latest version of the AWS API, we need to turn this feature off.  This can be set
         // in jvm.properties but trying to make this more foolproof.
         System.setProperty("com.amazonaws.sdk.disableCbor", "true");
-        this.classLoader = null;
     }
 
     @Override

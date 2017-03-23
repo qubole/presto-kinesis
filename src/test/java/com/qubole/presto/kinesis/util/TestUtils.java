@@ -15,13 +15,11 @@ package com.qubole.presto.kinesis.util;
 
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorContext;
 import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.VarcharType;
 import com.facebook.presto.testing.QueryRunner;
-import com.facebook.presto.testing.TestingNodeManager;
-import com.facebook.presto.type.TypeRegistry;
+import com.facebook.presto.testing.TestingConnectorContext;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -64,11 +62,6 @@ public class TestUtils
     public static KinesisPlugin createPluginInstance()
     {
         KinesisPlugin kinesisPlugin = new KinesisPlugin();
-
-        // Normally done by plug in manager, handle manually here
-        kinesisPlugin.setTypeManager(new TypeRegistry());
-        kinesisPlugin.setNodeManager(new TestingNodeManager());
-
         return kinesisPlugin;
     }
 
@@ -92,10 +85,10 @@ public class TestUtils
             plugin.setAltProviderClass(KinesisTestClientManager.class);
         }
 
-        ConnectorFactory factory = plugin.getServices(ConnectorFactory.class).get(0);
+        ConnectorFactory factory = plugin.getConnectorFactories().iterator().next();
         assertNotNull(factory);
 
-        Connector connector = factory.create("kinesis", properties, new ConnectorContext() {});
+        Connector connector = factory.create("kinesis", properties, new TestingConnectorContext() {});
         assertTrue(connector instanceof KinesisConnector);
         return (KinesisConnector) connector;
     }

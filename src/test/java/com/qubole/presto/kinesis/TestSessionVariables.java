@@ -17,6 +17,7 @@ import com.facebook.presto.Session;
 import com.facebook.presto.connector.ConnectorId;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.QueryId;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.type.TimeZoneKey;
 import com.google.common.collect.ImmutableMap;
@@ -58,6 +59,7 @@ public class TestSessionVariables
                 .setSchema("default")
                 .setTimeZoneKey(TimeZoneKey.getTimeZoneKey(tzId))
                 .setLocale(ENGLISH)
+                .setQueryId(new QueryId("dummy"))
                 .build().toConnectorSession(new ConnectorId("kinesis"));
     }
 
@@ -83,6 +85,7 @@ public class TestSessionVariables
                 .setSchema("default")
                 .setTimeZoneKey(TimeZoneKey.getTimeZoneKey("America/Los_Angeles"))
                 .setLocale(ENGLISH)
+                .setQueryId(new QueryId("dummy"))
                 .build();
         session = protoSession.toConnectorSession(new ConnectorId("kinesis"));
 

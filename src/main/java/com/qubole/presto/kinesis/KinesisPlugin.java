@@ -13,19 +13,15 @@
  */
 package com.qubole.presto.kinesis;
 
-import com.facebook.presto.spi.NodeManager;
 import com.facebook.presto.spi.Plugin;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.facebook.presto.spi.type.TypeManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import io.airlift.log.Logger;
 
-import javax.inject.Inject;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -43,8 +39,6 @@ public class KinesisPlugin
 {
     private static final Logger log = Logger.get(KinesisPlugin.class);
 
-    private TypeManager typeManager;
-    private NodeManager nodeManager;
     private Optional<Supplier<Map<SchemaTableName, KinesisStreamDescription>>> tableDescriptionSupplier = Optional.empty();
     private Map<String, String> optionalConfig = ImmutableMap.of();
     private Optional<Class<? extends KinesisClientProvider>> altProviderClass = Optional.empty();
@@ -65,28 +59,16 @@ public class KinesisPlugin
         this.optionalConfig = ImmutableMap.copyOf(requireNonNull(optionalConfig, "optionalConfig is null"));
     }
 
-    @Inject
-    public synchronized void setTypeManager(TypeManager typeManager)
-    {
-        // Note: this is done by the PluginManager when loading (not the injector of this plug in!)
-        log.info("Injecting type manager into KinesisPlugin");
-        this.typeManager = requireNonNull(typeManager, "typeManager is null");
-    }
-
-    @Inject
-    public synchronized void setNodeManager(NodeManager nodeManager)
-    {
-        log.info("Injecting node manager into KinesisPlugin");
-        this.nodeManager = requireNonNull(nodeManager, "node is null");
-    }
-
     @Override
-    public Iterable<ConnectorFactory> getConnectorFactories()
+    public synchronized Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(new KinesisConnectorFactory(getClassLoader()));
+        if(factory == null) {
+            this.factory = new KinesisConnectorFactory(getClassLoader(), tableDescriptionSupplier, optionalConfig, altProviderClass);
+        }
+        return ImmutableList.of(this.factory);
     }
 
-    public synchronized <T> List<T> getServices(Class<T> type)
+    /*public synchronized <T> List<T> getServices(Class<T> type)
     {
         if (type == ConnectorFactory.class) {
             if (this.factory == null) {
@@ -96,7 +78,7 @@ public class KinesisPlugin
             return ImmutableList.of(type.cast(this.factory));
         }
         return ImmutableList.of();
-    }
+    }*/
 
     @VisibleForTesting
     public synchronized void setTableDescriptionSupplier(Supplier<Map<SchemaTableName, KinesisStreamDescription>> tableDescriptionSupplier)

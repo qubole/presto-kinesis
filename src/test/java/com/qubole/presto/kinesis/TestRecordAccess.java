@@ -33,6 +33,7 @@ import io.airlift.log.Logger;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
@@ -75,15 +76,17 @@ public class TestRecordAccess
     {
         dummyStreamName = "test" + UUID.randomUUID().toString().replaceAll("-", "");
         jsonStreamName = "sampleTable";
+    }
+
+    @BeforeMethod
+    public void spinUp() throws Exception {
         ImmutableMap<SchemaTableName, KinesisStreamDescription> streamMap =
                 ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
                         put(TestUtils.createEmptyStreamDescription(dummyStreamName, new SchemaTableName("default", dummyStreamName))).
                         put(TestUtils.createSimpleJsonStreamDescription(jsonStreamName, new SchemaTableName("default", jsonStreamName))).
                         build();
-
         this.queryRunner = new StandaloneQueryRunner(SESSION);
         KinesisPlugin plugin = TestUtils.installKinesisPlugin(queryRunner, streamMap);
-
         clientManager = TestUtils.getTestClientManager(plugin.getInjector());
         mockClient = (MockKinesisClient) clientManager.getClient();
 

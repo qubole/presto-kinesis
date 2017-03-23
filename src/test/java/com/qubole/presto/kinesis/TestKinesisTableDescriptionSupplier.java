@@ -47,7 +47,7 @@ public class TestKinesisTableDescriptionSupplier
                 .build();
 
         KinesisPlugin kinesisPlugin = TestUtils.createPluginInstance();
-        KinesisConnector kinesisConnector = TestUtils.createConnector(kinesisPlugin, properties, true);
+        TestUtils.createConnector(kinesisPlugin, properties, true);
 
         injector = kinesisPlugin.getInjector();
         assertNotNull(injector);
