@@ -13,12 +13,28 @@
  */
 package com.qubole.presto.kinesis;
 
+import com.amazonaws.services.kinesis.model.PutRecordsRequest;
+import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
+import com.facebook.presto.Session;
+import com.facebook.presto.metadata.QualifiedObjectName;
+import com.facebook.presto.metadata.TableHandle;
+import com.facebook.presto.security.AllowAllAccessControl;
+import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.testing.MaterializedResult;
+import com.facebook.presto.testing.MaterializedRow;
+import com.facebook.presto.tests.StandaloneQueryRunner;
+import com.google.common.collect.ImmutableMap;
 import com.qubole.presto.kinesis.util.KinesisTestClientManager;
 import com.qubole.presto.kinesis.util.MockKinesisClient;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.testing.MaterializedRow;
 import com.qubole.presto.kinesis.util.TestUtils;
 import io.airlift.log.Logger;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -26,26 +42,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.amazonaws.services.kinesis.model.PutRecordsRequest;
-import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
-import com.facebook.presto.Session;
-import com.facebook.presto.metadata.QualifiedObjectName;
-import com.facebook.presto.metadata.TableHandle;
-import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.testing.MaterializedResult;
-import com.facebook.presto.tests.StandaloneQueryRunner;
-import com.google.common.collect.ImmutableMap;
-
-import static com.facebook.presto.transaction.TransactionBuilder.transaction;
-import static org.testng.Assert.assertTrue;
 import static com.facebook.presto.testing.TestingSession.testSessionBuilder;
+import static com.facebook.presto.transaction.TransactionBuilder.transaction;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Test record access and querying along with all associated setup.
@@ -76,15 +76,17 @@ public class TestRecordAccess
     {
         dummyStreamName = "test" + UUID.randomUUID().toString().replaceAll("-", "");
         jsonStreamName = "sampleTable";
+    }
+
+    @BeforeMethod
+    public void spinUp() throws Exception {
         ImmutableMap<SchemaTableName, KinesisStreamDescription> streamMap =
                 ImmutableMap.<SchemaTableName, KinesisStreamDescription>builder().
                         put(TestUtils.createEmptyStreamDescription(dummyStreamName, new SchemaTableName("default", dummyStreamName))).
                         put(TestUtils.createSimpleJsonStreamDescription(jsonStreamName, new SchemaTableName("default", jsonStreamName))).
                         build();
-
         this.queryRunner = new StandaloneQueryRunner(SESSION);
         KinesisPlugin plugin = TestUtils.installKinesisPlugin(queryRunner, streamMap);
-
         clientManager = TestUtils.getTestClientManager(plugin.getInjector());
         mockClient = (MockKinesisClient) clientManager.getClient();
 
@@ -147,7 +149,7 @@ public class TestRecordAccess
     {
         QualifiedObjectName name = new QualifiedObjectName("kinesis", "default", dummyStreamName);
 
-        transaction(queryRunner.getTransactionManager())
+        transaction(queryRunner.getTransactionManager(), new AllowAllAccessControl())
                 .singleStatement()
                 .execute(SESSION, session -> {
                     Optional<TableHandle> handle = queryRunner.getServer().getMetadata().getTableHandle(session, name);
