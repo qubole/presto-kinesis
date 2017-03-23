@@ -13,25 +13,6 @@
  */
 package com.qubole.presto.kinesis;
 
-import com.facebook.presto.execution.QueryId;
-import com.facebook.presto.spi.security.Identity;
-import com.qubole.presto.kinesis.util.EmbeddedKinesisStream;
-import com.qubole.presto.kinesis.util.TestUtils;
-import io.airlift.log.Logger;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Parameters;
-import org.testng.annotations.Test;
-
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.facebook.presto.Session;
@@ -39,15 +20,31 @@ import com.facebook.presto.metadata.QualifiedObjectName;
 import com.facebook.presto.metadata.SessionPropertyManager;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.SchemaTableName;
+import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.testing.MaterializedResult;
 import com.facebook.presto.tests.StandaloneQueryRunner;
 import com.google.common.collect.ImmutableMap;
+import com.qubole.presto.kinesis.util.EmbeddedKinesisStream;
+import com.qubole.presto.kinesis.util.TestUtils;
+import io.airlift.log.Logger;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Parameters;
+import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static com.facebook.presto.spi.type.TimeZoneKey.UTC_KEY;
 import static java.util.Locale.ENGLISH;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Note: this is an integration test that connects to AWS Kinesis.
@@ -63,7 +60,6 @@ public class TestMinimalFunctionality
 
     private static final Session SESSION = Session.builder(new SessionPropertyManager())
             .setIdentity(new Identity("user", Optional.empty()))
-            .setQueryId(QueryId.valueOf("test.query.id.123"))
             .setSource("source")
             .setCatalog("kinesis")
             .setSchema("default")

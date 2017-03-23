@@ -13,17 +13,18 @@
  */
 package com.qubole.presto.kinesis;
 
-import java.util.List;
-
-import com.qubole.presto.kinesis.util.TestUtils;
+import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.testing.TestingConnectorContext;
+import com.google.common.collect.ImmutableMap;
+import com.qubole.presto.kinesis.util.TestUtils;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
-import com.facebook.presto.spi.connector.Connector;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.facebook.presto.spi.transaction.IsolationLevel.READ_COMMITTED;
 import static org.testng.Assert.assertEquals;
@@ -44,7 +45,12 @@ public class TestKinesisPlugin
         KinesisPlugin plugin = TestUtils.createPluginInstance();
 
         // Create factory manually to double check everything is done right
-        List<ConnectorFactory> factories = plugin.getServices(ConnectorFactory.class);
+        Iterable<ConnectorFactory> iter = plugin.getConnectorFactories();
+
+        List<ConnectorFactory> factories = new ArrayList<>();
+        for (ConnectorFactory cf : iter) {
+            factories.add(cf);
+        }
         assertNotNull(factories);
         assertEquals(factories.size(), 1);
         ConnectorFactory factory = factories.get(0);
@@ -67,7 +73,7 @@ public class TestKinesisPlugin
                 .put("kinesis.hide-internal-columns", "false")
                 .put("kinesis.access-key", TestUtils.noneToBlank(awsAccessKey))
                 .put("kinesis.secret-key", TestUtils.noneToBlank(awsSecretKey))
-                .build());
+                .build(), new TestingConnectorContext() {});
         assertNotNull(c);
 
         // Verify that the key objects have been created on the connector
