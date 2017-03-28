@@ -31,7 +31,7 @@
 
     <groupId>com.qubole.presto</groupId>
     <artifactId>kinesis</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.2.0</version>
 
     <description>Presto - Kinesis Connector</description>
     <name>Presto-Kinesis</name>
@@ -41,7 +41,7 @@
         <url>https://github.com/qubole/presto-kinesis</url>
         <connection>scm:git:git://github.com/qubole/presto-kinesis</connection>
         <developerConnection>scm:git:git@github.com:qubole/presto-kinesis.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>kinesis-1.2.0</tag>
     </scm>
 
     <licenses>
