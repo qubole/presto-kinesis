@@ -191,12 +191,6 @@ public class KinesisRecordSet
         private GetRecordsResult getRecordsResult;
 
         @Override
-        public long getTotalBytes()
-        {
-            return totalBytes;
-        }
-
-        @Override
         public long getCompletedBytes()
         {
             return totalBytes;
