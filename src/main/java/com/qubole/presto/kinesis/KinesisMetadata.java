@@ -195,7 +195,7 @@ public class KinesisMetadata
             tableNames = ImmutableList.of(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
         }
         else {
-            tableNames = listTables(session, null);
+            tableNames = listTables(session, (String) null);
         }
 
         for (SchemaTableName tableName : tableNames) {
