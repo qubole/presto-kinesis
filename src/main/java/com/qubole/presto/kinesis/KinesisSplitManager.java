@@ -105,7 +105,7 @@ public class KinesisSplitManager
     }
 
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout)
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorTableLayoutHandle layout, ConnectorSplitManager.SplitSchedulingStrategy splitSchedulingStrategy)
     {
         KinesisTableLayoutHandle kinesislayout = handleResolver.convertLayout(layout);
         KinesisTableHandle kinesisTableHandle = kinesislayout.getTable();
