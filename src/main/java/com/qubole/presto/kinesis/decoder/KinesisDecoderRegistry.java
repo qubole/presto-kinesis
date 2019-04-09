@@ -82,6 +82,8 @@ public class KinesisDecoderRegistry
 
     /**
      * Return the specific row decoder for a given data format.
+     * @param dataFormat name of data format
+     * @return the specific row decoder for a given data format
      */
     public KinesisRowDecoder getRowDecoder(String dataFormat)
     {
