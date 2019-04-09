@@ -75,6 +75,11 @@ public class KinesisMetadata
     }
 
     /** Expose configuration to related internal classes that may need it. */
+    /**
+     * Return the session properties.
+     *
+     * @return the connector config for this connector
+     */
     public KinesisConnectorConfig getConnectorConfig()
     {
         return this.kinesisConnectorConfig;

@@ -151,8 +151,8 @@ public class KinesisConnectorFactory
     /**
      * Convenience method to get the table description supplier.
      *
-     * @param inj
-     * @return
+     * @param inj Injector for table description supplier
+     * @return Returns Table Description Supplier for kinesis table
      */
     protected KinesisTableDescriptionSupplier getTableDescSupplier(Injector inj)
     {

@@ -131,8 +131,8 @@ public class KinesisSplitManager
      *
      * Gets from the internal cache unless not yet created or too old.
      *
-     * @param streamName
-     * @return
+     * @param streamName Kinesis stream name
+     * @return Returns kinesis stream description
      */
     protected InternalStreamDescription getStreamDescription(String streamName)
     {

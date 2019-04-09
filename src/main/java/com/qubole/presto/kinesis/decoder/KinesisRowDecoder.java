@@ -24,6 +24,8 @@ public interface KinesisRowDecoder
 {
     /**
      * Returns the row decoder specific name.
+     *
+     * @return Return the row decoder specific name
      */
     String getName();
 
