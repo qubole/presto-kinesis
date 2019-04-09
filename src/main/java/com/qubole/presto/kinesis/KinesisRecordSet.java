@@ -216,7 +216,7 @@ public class KinesisRecordSet
          * getRecordsRequest we keep iterating through that list of records until we run out.  Then
          * we will get another batch unless we've hit the limit or have caught up.
          *
-         * @return
+         * @return Returns true if moved to next position, and false if all records are already read.
          */
         @Override
         public boolean advanceNextPosition()

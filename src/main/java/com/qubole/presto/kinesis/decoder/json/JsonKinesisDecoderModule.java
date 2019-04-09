@@ -21,10 +21,8 @@ import static com.qubole.presto.kinesis.decoder.KinesisDecoderModule.bindRowDeco
 
 /**
  * Guice module for the Json decoder module. This is the most mature (best tested) topic decoder.
- * <p/>
  * Besides the default field decoder for all the values, it also supports a number of decoders for
  * timestamp specific information. These decoders can be selected with the <tt>dataFormat</tt> field.
- * <p/>
  * <ul>
  * <li><tt>iso8601</tt> - decode the value of a json string field as an ISO8601 timestamp; returns a long value which can be mapped to a presto TIMESTAMP.</li>
  * <li><tt>rfc2822</tt> - decode the value of a json string field as an RFC 2822 compliant timestamp; returns a long value which can be mapped to a presto TIMESTAMP
