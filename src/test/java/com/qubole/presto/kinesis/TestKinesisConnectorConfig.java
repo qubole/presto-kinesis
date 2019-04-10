@@ -24,6 +24,10 @@ import io.airlift.units.Duration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Note this unit test does not access S3 but uses the parameters set in the POM
+ * in the unit tests.
+ */
 public class TestKinesisConnectorConfig
 {
     @Parameters({

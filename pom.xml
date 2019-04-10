@@ -390,10 +390,11 @@
                         <exclude>**/TestMinimalFunctionality.java</exclude>
                         <exclude>**/TestS3TableConfigClient.java</exclude>
                     </excludes>
+                    <!-- See comments in the TestS3TableConfigClient test for how to set these. -->
                     <systemPropertyVariables>
                         <kinesis.awsAccessKey>NONE</kinesis.awsAccessKey>
                         <kinesis.awsSecretKey>NONE</kinesis.awsSecretKey>
-                        <kinesis.tableDescriptionS3>s3://stitchfix.aa.config/unit-test/presto-kinesis</kinesis.tableDescriptionS3>
+                        <kinesis.tableDescriptionS3>s3://sample.bucket/unit-test/presto-kinesis</kinesis.tableDescriptionS3>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
