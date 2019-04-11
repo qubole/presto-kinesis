@@ -89,7 +89,10 @@ public class TestS3TableConfigClient
     public void testTableReading(String tableDescriptionS3, String accessKey, String secretKey)
     {
         // To run this test: setup an S3 bucket with a folder for unit testing, and put the
-        // testtable.json file in that folder.
+        // etc/kinesis/testtable.json file from this project in that folder.  You'll need to
+        // set kinesis.tableDescriptionS3 in the pom to the correct S3 location of this file.
+        // You'll also need to set the AWS access keys (if required) to run this and the
+        // other integration tests.
 
         // Create dependent objects, including the minimal config needed for this test
         Map<String, String> properties = new ImmutableMap.Builder<String, String>()
